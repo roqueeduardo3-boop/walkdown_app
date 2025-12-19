@@ -1,0 +1,84 @@
+{
+"occurrencesTitle": "Ocorrências",
+"languageChooseTitle": "Escolhe o idioma",
+"walkdownCompletedLabel": "Walkdown Completo",
+"newOccurrenceTitle": "Nova ocorrência",
+"locationLabel": "Localização / Secção / Item",
+"locationRequired": "Indica a localização / secção / item",
+"descriptionLabel": "Descrição / Problema",
+"descriptionRequired": "Descrição é obrigatória",
+"dragPhotosHint": "Arrasta aqui as fotos (PC)",
+"editOccurrenceMessage": "A editar ocorrência. Clica Cancelar para criar nova.",
+"occurrenceUpdatedMessage": "Ocorrência atualizada",
+"occurrenceSavedMessage": "Ocorrência guardada",
+"maxPhotosMessage": "Máximo de 4 fotos por ocorrência",
+"photoAddedMessage": "Foto adicionada (máximo 4).",
+"@photoAddedMessage": {
+  "placeholders": {
+    "current": {"type": "int"}
+  }
+},
+"cameraButtonLabel": "Câmara",
+"galleryButtonLabel": "Galeria",
+"photosCountLabel": "Fotos: 4",
+"@photosCountLabel": {
+  "placeholders": {
+    "count": {"type": "int"}
+  }
+},
+"updateButtonLabel": "Atualizar",
+"saveButtonLabel": "Guardar",
+"editCanceledMessage": "Edição cancelada",
+"cancelEditButtonLabel": "Cancelar edição",
+"cancelButtonLabel": "Cancelar",
+"createdAtLabel": "Criado em:",
+"attachedPhotosLabel": "Fotos anexadas:",
+"@attachedPhotosLabel": {
+  "placeholders": {
+    "count": {"type": "int"}
+  }
+},
+"noOccurrencesLabel": "Nenhuma ocorrência registada ainda.",
+"walkdownsLoaded": "Carregado da BD: {count} registos",
+"@walkdownsLoaded": {
+  "placeholders": {
+    "count": { "type": "int" }
+  }
+},
+"newWalkdownButton": "New Walkdown",
+"walkdownWelcomeTitle": "Welcome to Walkdown 2WS",
+"deleteWalkdownTitle": "Delete walkdown",
+"deleteWalkdownQuestion": "Are you sure you want to delete this walkdown?",
+"cancelButtonLabel": "Cancel",
+"deleteButtonLabel": "Delete",
+"pdfGenerated": "PDF generated: {path}",
+"@pdfGenerated": {
+  "placeholders": {
+    "path": { "type": "String" }
+  }
+},
+"pdfOpenLabel": "Open",
+"pdfErrorLabel": "Error generating PDF",
+"pdfTooltip": "Generate PDF",
+"excelSuccessLabel": "Excel generated successfully",
+"excelErrorLabel": "Error generating Excel",
+"excelTooltip": "Export to Excel",
+"towerTypeLabel": "Tower type",
+"towerTypeFourSections": "4 sections (up to S4)",
+"towerTypeFiveSections": "5 sections (up to S5)",
+"dateLabel": "Date",
+"chooseDateButtonLabel": "Choose date",
+"newWalkdownDialogTitle": "New Walkdown",
+"projectNameLabel": "Project",
+"projectNumberLabel": "Number",
+"supervisorLabel": "Supervisor",
+"roadLabel": "Road",
+"towerLabel": "Tower",
+"fieldRequiredLabel": "Required",
+"checklistTitle": "Checklist",
+"checklistTitle": "Checklist Completo - Gerar PDF",
+  "@@locale": "pt",
+  "languageChooseTitle": "Escolha o idioma",
+  "checklistTitle": "Checklist Completo - Gerar PDF"
+
+}
