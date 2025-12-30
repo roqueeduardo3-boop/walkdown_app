@@ -1,5 +1,16 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# Fix global para Firebase Windows - força desativar warnings como erros em TODOS os plugins
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W0")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W0")
+if(MSVC)
+  string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  string(REPLACE "/W3" "/W0" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  add_compile_options(/wd4996 /wd4005)
+endif()
+
+
 project(walkdown_app LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change

@@ -29,6 +29,8 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
   @override
   void initState() {
     super.initState();
+    print('🚀 initState EXECUTADO!');
+    print('Walkdown ID: ${widget.walkdown.id}');
     _sections = buildChecklistForWalkdown(widget.walkdown);
     _loadAnswers();
   }
@@ -40,9 +42,15 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
       widget.walkdown.id!,
     );
 
+    print('🔍 DEBUG loadAnswers: walkdownId=${widget.walkdown.id}');
+    print('🔍 DEBUG savedAnswers.length=${savedAnswers.length}');
+    print('🔍 DEBUG savedAnswers=$savedAnswers');
+
     setState(() {
       _answers.addAll(savedAnswers);
     });
+
+    print('🔍 DEBUG _answers.length=${_answers.length}');
   }
 
   Color _yesColor(String itemId) => _answers[itemId] == 'YES'
@@ -114,6 +122,9 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         onPressed: () async {
+                          print(
+                              '💾 SAVING: walkdownId=${widget.walkdown.id}, itemId=${item.id}, answer=YES');
+
                           setState(() {
                             _answers[item.id] = 'YES';
                           });
@@ -124,6 +135,7 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                               item.id,
                               'YES',
                             );
+                            print('✅ SAVED YES');
                           }
                         },
                         child: const Text(

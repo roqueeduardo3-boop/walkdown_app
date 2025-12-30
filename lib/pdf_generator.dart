@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:translator/translator.dart';
 import 'models.dart';
 import 'translations.dart';
+import 'services/firebase_storage_service.dart'; // ✅ ADICIONA ESTA LINHA
 
 class PdfGenerator {
   static pw.Font? _regularFont;
@@ -89,6 +90,44 @@ class PdfGenerator {
     final translatedOccurrences = await _translateOccurrences(occurrences);
     print('✅ Tradução concluída!');
 
+    // ✅ PRÉ-DOWNLOAD DAS FOTOS DO FIREBASE
+    print('📥 Fazendo download das fotos do Firebase...');
+    final occurrencesWithLocalPhotos = <Occurrence>[];
+
+    for (final occ in translatedOccurrences) {
+      final localPhotos = <String>[];
+
+      for (final photoPath in occ.photos) {
+        if (photoPath.startsWith('http')) {
+          try {
+            // Download da foto do Firebase
+            final localFile =
+                await FirebaseStorageService.downloadPhoto(photoPath);
+            localPhotos.add(localFile.path);
+            print('✅ Foto baixada: ${localFile.path}');
+          } catch (e) {
+            print('❌ Erro ao baixar foto: $e');
+            localPhotos.add(''); // Adiciona vazio para mostrar X
+          }
+        } else {
+          localPhotos.add(photoPath); // Já é local
+        }
+      }
+
+      occurrencesWithLocalPhotos.add(
+        Occurrence(
+          id: occ.id,
+          walkdownId: occ.walkdownId,
+          location: occ.location,
+          description: occ.description,
+          createdAt: occ.createdAt,
+          photos: localPhotos,
+        ),
+      );
+    }
+
+    print('✅ Download completo!');
+
     final pdf = pw.Document();
 
     pw.ImageProvider? logoImage;
@@ -107,7 +146,8 @@ class PdfGenerator {
         build: (context) => [
           _buildHeader(walkdown, logoImage),
           pw.SizedBox(height: 10),
-          _buildOccurrencesTable(translatedOccurrences),
+          _buildOccurrencesTable(
+              occurrencesWithLocalPhotos), // ✅ USA FOTOS LOCAIS
         ],
       ),
     );
@@ -369,19 +409,21 @@ class PdfGenerator {
       padding: const pw.EdgeInsets.all(2),
       alignment: pw.Alignment.center,
       child: pw.Wrap(
-        // ou Row, conforme usas
         spacing: 4,
         runSpacing: 4,
         children: photos.take(4).map((photoPath) {
           final file = File(photoPath);
           pw.ImageProvider? imageProvider;
+
           try {
-            final bytes = file.readAsBytesSync();
-            imageProvider = pw.MemoryImage(bytes);
+            if (file.existsSync()) {
+              final bytes = file.readAsBytesSync();
+              imageProvider = pw.MemoryImage(bytes);
+            }
           } catch (_) {}
 
           return pw.SizedBox(
-            width: 90, // tamanho do “quadrado”
+            width: 90,
             height: 70,
             child: imageProvider != null
                 ? pw.ClipRRect(
@@ -399,6 +441,37 @@ class PdfGenerator {
         }).toList(),
       ),
     );
+  }
+
+  /// ✅ NOVA FUNÇÃO: Download das fotos do Firebase Storage
+  static Future<List<pw.ImageProvider?>> _downloadPhotosForPdf(
+      List<String> photos) async {
+    final List<pw.ImageProvider?> providers = [];
+
+    for (final photoPath in photos) {
+      try {
+        if (photoPath.startsWith('http')) {
+          // ✅ É URL DO FIREBASE - FAZER DOWNLOAD
+          final file = await FirebaseStorageService.downloadPhoto(photoPath);
+          final bytes = await file.readAsBytes();
+          providers.add(pw.MemoryImage(bytes));
+        } else {
+          // ✅ É PATH LOCAL (COMPATIBILIDADE)
+          final file = File(photoPath);
+          if (await file.exists()) {
+            final bytes = await file.readAsBytes();
+            providers.add(pw.MemoryImage(bytes));
+          } else {
+            providers.add(null);
+          }
+        }
+      } catch (e) {
+        print('⚠️ Erro ao processar foto para PDF: $e');
+        providers.add(null);
+      }
+    }
+
+    return providers;
   }
 
   static pw.Widget _buildEmptyCell() {

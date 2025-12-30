@@ -28,23 +28,36 @@ dependencies:
   share_plus: ^10.0.1
   media_scanner: ^2.2.0
   open_filex: ^4.5.0
-  desktop_drop: ^0.4.0  # ou a última versão
-  intl: 0.20.2
+  desktop_drop: ^0.4.0
+  intl: ^0.20.2
   image_picker: ^1.1.0
-
+  
+  # Firebase - VERSÕES ATUALIZADAS E COMPATÍVEIS COM WINDOWS
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/logo_turbina2.png"
 
 flutter:
   uses-material-design: true
   generate: true
-  
+
   assets:
     - assets/logo_2ws.png
     - assets/1logo_2ws.png
+    - assets/logo_turbina.png
     - lib/l10n/
     - assets/fonts/Roboto-Regular.ttf
     - assets/fonts/Roboto-Bold.ttf
+    - assets/logo_turbina2.png

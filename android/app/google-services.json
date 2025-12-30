@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "377776819316",
+    "project_id": "walkdown-sync",
+    "storage_bucket": "walkdown-sync.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377776819316:android:a611d02319155843889521",
+        "android_client_info": {
+          "package_name": "com.example.firestore_test_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzwmz7LwUb7jKjTcH_djxFw13sO8277Ec"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377776819316:android:ef8ad0a81046584a889521",
+        "android_client_info": {
+          "package_name": "com.example.walkdown_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzwmz7LwUb7jKjTcH_djxFw13sO8277Ec"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

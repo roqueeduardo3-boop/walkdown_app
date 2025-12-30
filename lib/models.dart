@@ -43,6 +43,36 @@ class Occurrence {
   });
 }
 
+class OccurrencePhoto {
+  final int? id;
+  final int occurrenceId;
+  final String path;
+
+  OccurrencePhoto({
+    this.id,
+    required this.occurrenceId,
+    required this.path,
+  });
+
+  // Criar a partir de um Map (database)
+  factory OccurrencePhoto.fromMap(Map<String, dynamic> map) {
+    return OccurrencePhoto(
+      id: map['id'] as int?,
+      occurrenceId: map['occurrence_id'] as int,
+      path: map['path'] as String,
+    );
+  }
+
+  // Converter para Map (database)
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'occurrence_id': occurrenceId,
+      'path': path,
+    };
+  }
+}
+
 class WalkdownData {
   final int? id; // id do walkdown na BD
   final ProjectInfo projectInfo;
@@ -50,6 +80,7 @@ class WalkdownData {
   final TowerType towerType;
   final String turbineName;
   final bool isCompleted;
+  final String? firestoreId;
 
   WalkdownData({
     this.id,
@@ -57,11 +88,13 @@ class WalkdownData {
     required this.occurrences,
     required this.towerType,
     required this.turbineName,
+    this.firestoreId,
     this.isCompleted = false, // default
   });
 
   WalkdownData copyWith({
     int? id,
+    String? firestoreId,
     ProjectInfo? projectInfo,
     List<Occurrence>? occurrences,
     TowerType? towerType,
@@ -70,6 +103,7 @@ class WalkdownData {
   }) {
     return WalkdownData(
       id: id ?? this.id,
+      firestoreId: firestoreId ?? this.firestoreId,
       projectInfo: projectInfo ?? this.projectInfo,
       occurrences: occurrences ?? this.occurrences,
       towerType: towerType ?? this.towerType,
@@ -81,6 +115,7 @@ class WalkdownData {
   factory WalkdownData.fromMap(Map<String, dynamic> m) {
     return WalkdownData(
       id: m['id'] as int?,
+      firestoreId: m['firestore_id'] as String?,
       projectInfo: ProjectInfo(
         projectName: m['project_name'] as String? ?? '',
         projectNumber: m['project_number'] as String? ?? '',
@@ -99,6 +134,7 @@ class WalkdownData {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'firestore_id': firestoreId,
       'project_name': projectInfo.projectName,
       'project_number': projectInfo.projectNumber,
       'supervisor_name': projectInfo.supervisorName,
