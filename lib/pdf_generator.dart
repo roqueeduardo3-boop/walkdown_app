@@ -1,14 +1,15 @@
 import 'dart:io';
-
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
+import 'package:path_provider/path_provider.dart'; // ✅ Já tens
+import 'package:path/path.dart' as path; // 👈 NOVO!
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:translator/translator.dart';
 import 'models.dart';
 import 'translations.dart';
-import 'services/firebase_storage_service.dart'; // ✅ ADICIONA ESTA LINHA
+import 'services/firebase_storage_service.dart';
+import 'services/cache_cleanup_service.dart'; // 👈 NOVO!
 
 class PdfGenerator {
   static pw.Font? _regularFont;
@@ -101,8 +102,8 @@ class PdfGenerator {
         if (photoPath.startsWith('http')) {
           try {
             // Download da foto do Firebase
-            final localFile =
-                await FirebaseStorageService.downloadPhoto(photoPath);
+            final localFile = await PdfGenerator.downloadPhotoOptimized(
+                photoPath, walkdown.firestoreId ?? walkdown.id.toString());
             localPhotos.add(localFile.path);
             print('✅ Foto baixada: ${localFile.path}');
           } catch (e) {
@@ -542,5 +543,48 @@ class PdfGenerator {
         ],
       ),
     );
+  }
+  // 👈 ADICIONA NO FINAL (mantém TUDO igual)
+
+// ===== OTIMIZAÇÕES CACHE (ADICIONA NO FINAL) =====
+
+  /// 1. Busca foto no CACHE primeiro
+  static Future<File?> _getCachedPhoto(
+      String photoPath, String walkdownId) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final cacheFile = File(path.join(appDir.path, 'inspection_cache',
+          walkdownId, path.basename(photoPath)));
+      if (await cacheFile.exists()) {
+        print('✅ CACHE HIT: ${path.basename(photoPath)}');
+        return cacheFile;
+      }
+    } catch (e) {
+      print('⚠️ Cache miss: $e');
+    }
+    return null;
+  }
+
+  /// 2. Download otimizado CACHE + Firebase
+  static Future<File> downloadPhotoOptimized(
+      String photoPath, String walkdownId) async {
+    // CACHE PRIMEIRO
+    final cached = await _getCachedPhoto(photoPath, walkdownId);
+    if (cached != null) return cached;
+
+    // FALLBACK FIREBASE
+    final firebaseFile = await FirebaseStorageService.downloadPhoto(photoPath);
+    print('📥 Firebase: ${path.basename(photoPath)}');
+    return firebaseFile;
+  }
+
+  /// 3. Cleanup inteligente (corrigido!)
+  static Future<void> cleanupPdfCache(WalkdownData walkdown) async {
+    final walkdownId = walkdown.firestoreId ??
+        walkdown.id?.toString() ??
+        'local_${DateTime.now().millisecondsSinceEpoch}';
+
+    await CacheCleanupService.clearWalkdownCache(walkdownId);
+    print('🧹 Cache limpo: $walkdownId');
   }
 }

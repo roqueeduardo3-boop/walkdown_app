@@ -2,9 +2,22 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path/path.dart' as path;
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 class FirebaseStorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  static Future<User> ensureStorageUser() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.isAnonymous) {
+      print('🔐 Storage: Re-auth anonymous...');
+      final cred = await FirebaseAuth.instance.signInAnonymously();
+      user = cred.user!;
+    }
+    print('✅ Storage User: ${user!.uid}');
+    return user!;
+  }
 
   /// Faz upload de uma foto para Firebase Storage e retorna a URL de download
   static Future<String> uploadPhoto({
@@ -13,10 +26,8 @@ class FirebaseStorageService {
     required String occurrenceId,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('User not authenticated');
-      }
+      final user = await FirebaseStorageService.ensureStorageUser() ??
+          (throw Exception('User not authenticated'));
 
       final file = File(localPath);
       if (!await file.exists()) {
@@ -96,8 +107,8 @@ class FirebaseStorageService {
   /// Apaga todas as fotos de um walkdown
   static Future<void> deleteWalkdownPhotos(int walkdownId) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      final user = await FirebaseStorageService.ensureStorageUser() ??
+          (throw Exception('User not authenticated'));
 
       final ref = _storage
           .ref()

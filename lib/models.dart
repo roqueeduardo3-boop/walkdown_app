@@ -28,10 +28,10 @@ class ProjectInfo {
 class Occurrence {
   final String id;
   final int walkdownId;
-  final String location; // ex: "NACELE – Parafusos soltos"
+  final String location;
   final String description;
   final DateTime createdAt;
-  final List<String> photos; // até 4 fotos (paths)
+  final List<String> photos;
 
   Occurrence({
     required this.id,
@@ -54,7 +54,6 @@ class OccurrencePhoto {
     required this.path,
   });
 
-  // Criar a partir de um Map (database)
   factory OccurrencePhoto.fromMap(Map<String, dynamic> map) {
     return OccurrencePhoto(
       id: map['id'] as int?,
@@ -63,7 +62,6 @@ class OccurrencePhoto {
     );
   }
 
-  // Converter para Map (database)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -74,22 +72,26 @@ class OccurrencePhoto {
 }
 
 class WalkdownData {
-  final int? id; // id do walkdown na BD
+  final int? id;
+  final String? ownerUid;
   final ProjectInfo projectInfo;
   final List<Occurrence> occurrences;
   final TowerType towerType;
   final String turbineName;
   final bool isCompleted;
   final String? firestoreId;
+  final int needsSync;
 
   WalkdownData({
     this.id,
+    this.ownerUid,
     required this.projectInfo,
     required this.occurrences,
     required this.towerType,
     required this.turbineName,
     this.firestoreId,
-    this.isCompleted = false, // default
+    this.isCompleted = false,
+    this.needsSync = 1,
   });
 
   WalkdownData copyWith({
@@ -115,7 +117,9 @@ class WalkdownData {
   factory WalkdownData.fromMap(Map<String, dynamic> m) {
     return WalkdownData(
       id: m['id'] as int?,
+      ownerUid: m['ownerUid'],
       firestoreId: m['firestore_id'] as String?,
+      needsSync: (m['needs_sync'] as int?) ?? 1,
       projectInfo: ProjectInfo(
         projectName: m['project_name'] as String? ?? '',
         projectNumber: m['project_number'] as String? ?? '',
@@ -134,38 +138,45 @@ class WalkdownData {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'ownerUid': ownerUid,
       'firestore_id': firestoreId,
+      'needs_sync': needsSync,
       'project_name': projectInfo.projectName,
       'project_number': projectInfo.projectNumber,
       'supervisor_name': projectInfo.supervisorName,
       'road': projectInfo.road,
       'tower_number': projectInfo.towerNumber,
       'date': projectInfo.date.toIso8601String(),
-      'tower_type': towerType.index, // enum -> int
+      'tower_type': towerType.index,
       'turbine_name': turbineName,
-      'is_completed': isCompleted ? 1 : 0, // bool -> 0/1
+      'is_completed': isCompleted ? 1 : 0,
     };
   }
 }
 
 class ChecklistItem {
-  final String id; // ex.: 'hub_bolts_marked'
-  final String textPt; // texto em PT
-  final String textEn; // texto em EN
+  final String id;
+  final String textPt;
+  final String? textEn; // ✅ Nullable para permitir PT sem EN
 
-  ChecklistItem({required this.id, required this.textPt, required this.textEn});
+  ChecklistItem({
+    required this.id,
+    required this.textPt,
+    this.textEn,
+  });
 }
 
 class ChecklistSection {
-  final String id; // ex.: 'HUB', 'NACELE', 'S2'
+  final String id;
   final String titlePt;
-  final String titleEn;
+  final String? titleEn; // ✅ Nullable
+
   final List<ChecklistItem> items;
 
   ChecklistSection({
     required this.id,
     required this.titlePt,
-    required this.titleEn,
+    this.titleEn,
     required this.items,
   });
 }
@@ -218,12 +229,12 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
         ChecklistItem(
           id: 'hub_lift_points',
           textPt: 'Os lift points do HUB têm anti corrosão',
-          textEn: 'The HUB lift points have anti-corrosion protection.',
+          textEn: 'The HUB lift points have anti-corrosion protection',
         ),
         ChecklistItem(
           id: 'hub_studs',
-          textPt: 'Os parafudos das blades estão marcados a preto e vermelho',
-          textEn: 'The blade studs are correct mark with black and red',
+          textPt: 'Os parafusos das blades estão marcados a preto e vermelho',
+          textEn: 'The blade studs are correctly marked with black and red',
         ),
         ChecklistItem(
           id: 'hub_ping_test',
@@ -233,9 +244,109 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
         ChecklistItem(
           id: 'hub_blade_clean',
           textPt: 'As blades estão limpas por fora e sem danos',
-          textEn: 'The blades are clean and wihtout damages outside',
+          textEn: 'The blades are clean and without damages outside',
         ),
-        // ...continua com mais 3–4 itens que aches mais importantes do HUB
+      ],
+    ),
+  );
+
+  // NACELE
+  sections.add(
+    ChecklistSection(
+      id: 'NACELE',
+      titlePt: 'Nacele',
+      titleEn: 'Nacelle',
+      items: [
+        ChecklistItem(
+          id: 'nacelle_ladders_ok',
+          textPt: 'Escadas da nacele fixas e com lixas antiderrapantes',
+          textEn: 'Nacelle ladders fixed and with anti-slip strips',
+        ),
+        ChecklistItem(
+          id: 'nacelle_floor_hatches',
+          textPt: 'Escotilhas do chão metálico com proteção nos cantos',
+          textEn: 'Metal floor hatches with edge protection',
+        ),
+        ChecklistItem(
+          id: 'nacelle_underfloor_clean',
+          textPt: 'Chão por baixo da plataforma metálica limpo e em condições',
+          textEn: 'Area under metal platform clean and in good condition',
+        ),
+        ChecklistItem(
+          id: 'nacelle_cabinets_doors',
+          textPt: 'Portas dos armários em boas condições',
+          textEn: 'Cabinet doors in good condition',
+        ),
+        ChecklistItem(
+          id: 'nacelle_data_cable',
+          textPt: 'Ligação de dados ligada e com folga suficiente',
+          textEn: 'Data connection plugged and with enough slack',
+        ),
+        ChecklistItem(
+          id: 'nacelle_first_aid_3lang',
+          textPt: 'Kit de primeiros socorros presente nas 3 línguas',
+          textEn: 'First aid kit present in 3 languages',
+        ),
+        ChecklistItem(
+          id: 'nacelle_stickers',
+          textPt: 'Autocolantes colocados nos locais corretos',
+          textEn: 'Stickers installed in correct locations',
+        ),
+        ChecklistItem(
+          id: 'nacelle_clean_torque_marks',
+          textPt: 'Limpeza geral e marcas de torque no gerador visíveis',
+          textEn: 'Clean nacelle and visible torque marks on generator',
+        ),
+        ChecklistItem(
+          id: 'nacelle_generator_paint',
+          textPt: 'Pintura do gerador em boas condições',
+          textEn: 'Generator paint in good condition',
+        ),
+        ChecklistItem(
+          id: 'nacelle_drivetrain_paint',
+          textPt: 'Pintura do drive train em boas condições',
+          textEn: 'Drive train paint in good condition',
+        ),
+        ChecklistItem(
+          id: 'nacelle_filters_above_gen',
+          textPt: 'Filtros por cima do gerador em boas condições',
+          textEn: 'Filters above generator in good condition',
+        ),
+        ChecklistItem(
+          id: 'nacelle_coupling_ok',
+          textPt: 'Coupling em boas condições',
+          textEn: 'Coupling in good condition',
+        ),
+        ChecklistItem(
+          id: 'nacelle_work_hatch',
+          textPt: 'Escotilha de trabalho em boas condições e fechada',
+          textEn: 'Work hatch in good condition and closed',
+        ),
+        ChecklistItem(
+          id: 'nacelle_cooler_bolts_anticorrosion',
+          textPt: 'Parafusos do cooler com proteção anticorrosão',
+          textEn: 'Cooler bolts with anti-corrosion protection',
+        ),
+        ChecklistItem(
+          id: 'nacelle_flexible_ducts_fixed',
+          textPt: 'Mangas flexíveis presas corretamente',
+          textEn: 'Flexible ducts properly fixed',
+        ),
+        ChecklistItem(
+          id: 'nacelle_ladders_below_mainshaft',
+          textPt: 'Escadas para debaixo do main shaft colocadas',
+          textEn: 'Ladders below main shaft installed',
+        ),
+        ChecklistItem(
+          id: 'nacelle_below_mainshaft_clean',
+          textPt: 'Zona por baixo do main shaft limpa',
+          textEn: 'Area below main shaft clean',
+        ),
+        ChecklistItem(
+          id: 'nacelle_all_bolts_torque_mark',
+          textPt: 'Todos os parafusos com marca de torque',
+          textEn: 'All relevant bolts with torque mark',
+        ),
       ],
     ),
   );

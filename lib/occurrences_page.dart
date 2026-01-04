@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'database.dart';
 import 'models.dart';
 import 'package:walkdown_app/l10n/app_localizations.dart';
 import 'services/firebase_storage_service.dart';
+import 'services/image_compression_service.dart';
 
 class WalkdownOccurrencesPage extends StatefulWidget {
   final WalkdownData walkdown;
@@ -29,7 +30,9 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
   final TextEditingController descriptionController = TextEditingController();
 
   final List<Occurrence> occurrences = [];
-  final List<String> tempPhotos = [];
+  List<String> tempPhotos = [];
+  bool isDragging = false;
+
   Occurrence? _editingOccurrence;
 
   @override
@@ -79,10 +82,7 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         location: locationController.text.trim(),
         description: descriptionController.text.trim(),
         createdAt: _editingOccurrence!.createdAt,
-        photos: [
-          ..._editingOccurrence!.photos,
-          ...tempPhotos,
-        ],
+        photos: List<String>.from(tempPhotos), // ✅ CORRIGIDO!
       );
 
       await WalkdownDatabase.instance.updateOccurrence(
@@ -96,10 +96,12 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         if (index != -1) {
           occurrences[index] = updateOcc;
         }
+
         _editingOccurrence = null;
         locationController.clear();
         descriptionController.clear();
         tempPhotos.clear();
+        isDragging = false; // 👈 adiciona esta linha
       });
 
       if (mounted) {
@@ -127,6 +129,8 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         widget.walkdown.id!,
       );
 
+      print('✅ SAVED occurrence ID: ${uniqueId}'); // ← ADICIONA1!
+
       setState(() {
         occurrences
           ..add(occ)
@@ -136,6 +140,10 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         tempPhotos.clear();
       });
 
+      final countAfter = await WalkdownDatabase.instance
+          .countOccurrencesForWalkdown(widget.walkdown.id!);
+      print('📊 TOTAL após save: $countAfter'); // ← ADICIONA2!
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(loc.occurrenceSavedMessage)),
@@ -144,30 +152,137 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
     }
   }
 
-  // ========== REMOVER OCORRÊNCIA ==========
-  Future<void> _removeOccurrence(String id) async {
-    final confirm = await showDialog<bool>(
+  Future<void> _pickPhoto(ImageSource source) async {
+    final loc = AppLocalizations.of(context)!;
+
+    if (tempPhotos.length >= 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loc.maxPhotosMessage)),
+      );
+      return;
+    }
+
+    final ImagePicker picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: source);
+
+    if (picked == null) return;
+
+    String pathToUpload = picked.path;
+
+    // ✅ COMPRESSÃO com FALLBACK para GALERIA
+    if (source == ImageSource.camera) {
+      // Câmara: sempre comprimir
+      final String? compressedPath =
+          await ImageCompressionService.compressImage(pathToUpload);
+      pathToUpload = compressedPath ?? pathToUpload;
+    } else {
+      // Galeria: tentar comprimir, mas usar original se falhar
+      final String? compressedPath =
+          await ImageCompressionService.compressImage(pathToUpload);
+      if (compressedPath != null) {
+        pathToUpload = compressedPath;
+      } else {
+        print('⚠️ Compressão da galeria falhou, usando original');
+      }
+    }
+
+    // Upload do ficheiro (comprimido ou original)
+    await _uploadFromPath(pathToUpload);
+  }
+
+  /// Usa a MESMA lógica de upload para botão e drag&drop
+  Future<void> _uploadFromPath(String localPath) async {
+    final loc = AppLocalizations.of(context)!;
+
+    if (tempPhotos.length >= 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loc.maxPhotosMessage)),
+      );
+      return;
+    }
+
+    // ✅ MOSTRAR LOADING DURANTE COMPRESSÃO + UPLOAD
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar ocorrência'),
-        content:
-            const Text('Tem a certeza que deseja eliminar esta ocorrência?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 12),
+            Text(
+              'Compress and send...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (confirm != true) return;
+    try {
+      // ✅ COMPRIMIR IMAGEM (se não estiver já comprimida)
+      String pathToUpload = localPath;
 
-    await WalkdownDatabase.instance.deleteOccurrence(id);
+      // Se o caminho NÃO contém "compressed_", então comprimir
+      if (!localPath.contains('compressed_')) {
+        final String? compressedPath =
+            await ImageCompressionService.compressImage(localPath);
+
+        if (compressedPath != null) {
+          pathToUpload = compressedPath;
+        } else {
+          // Se falhar compressão, usar original
+          print('⚠️ Compressão falhou, a usar imagem original');
+        }
+      }
+
+      // ✅ UPLOAD PARA FIREBASE STORAGE
+      final downloadUrl = await FirebaseStorageService.uploadPhoto(
+        localPath: pathToUpload,
+        walkdownId: widget.walkdown.id!,
+        occurrenceId: _editingOccurrence?.id ??
+            'temp_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // fechar loading
+
+      setState(() {
+        tempPhotos.add(downloadUrl);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Foto comprimida e enviada (${tempPhotos.length}/4)'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // fechar loading
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // ========== REMOVER OCORRÊNCIA ==========
+  Future<void> _removeOccurrence(String id) async {
+    final db = await WalkdownDatabase.instance.database;
+    await db.delete('occurrence_photos',
+        where: 'occurrence_id = ?', whereArgs: [id]);
+    await db.delete('occurrences', where: 'id = ?', whereArgs: [id]);
+
     setState(() {
       occurrences.removeWhere((o) => o.id == id);
     });
@@ -191,69 +306,6 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
     );
   }
 
-// ========== ADICIONAR FOTO COM UPLOAD PARA FIREBASE STORAGE ==========
-  Future<void> _pickPhoto(ImageSource source) async {
-    final loc = AppLocalizations.of(context)!;
-
-    if (tempPhotos.length >= 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.maxPhotosMessage)),
-      );
-      return;
-    }
-
-    final ImagePicker picker = ImagePicker();
-    final XFile? picked = await picker.pickImage(source: source);
-
-    if (picked == null) return;
-
-    // ✅ MOSTRAR LOADING DURANTE UPLOAD
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      // ✅ UPLOAD PARA FIREBASE STORAGE
-      final downloadUrl = await FirebaseStorageService.uploadPhoto(
-        localPath: picked.path,
-        walkdownId: widget.walkdown.id!,
-        occurrenceId: _editingOccurrence?.id ??
-            'temp_${DateTime.now().millisecondsSinceEpoch}',
-      );
-
-      if (!mounted) return;
-      Navigator.pop(context); // Fechar loading
-
-      setState(() {
-        tempPhotos.add(downloadUrl); // ✅ GUARDAR URL EM VEZ DE PATH LOCAL
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.photoAddedMessage(tempPhotos.length)),
-            duration: const Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context); // Fechar loading
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro no upload: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
   // ========== BUILD UI ==========
   @override
   Widget build(BuildContext context) {
@@ -273,7 +325,16 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
     );
   }
 
-  // ========== SECÇÃO DO FORMULÁRIO ==========
+  bool get _isDesktop {
+    if (kIsWeb) return true;
+    try {
+      return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+    } catch (e) {
+      return false;
+    }
+  }
+
+// ========== SECÇÃO DO FORMULÁRIO ==========
   Widget _buildFormSection(AppLocalizations loc) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -305,103 +366,159 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
             ),
             const SizedBox(height: 16),
 
-            // DESCRIPTION
-            TextFormField(
-              controller: descriptionController,
-              decoration: InputDecoration(
-                labelText: loc.descriptionLabel,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 4,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return loc.descriptionRequired;
-                }
-                return null;
-              },
+            // DESCRIPTION + DRAG&DROP + MINIATURAS
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 📝 DESCRIÇÃO (esquerda)
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      labelText: loc.descriptionLabel,
+                      border: const OutlineInputBorder(),
+                    ),
+                    maxLines: 5,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return loc.descriptionRequired;
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+// 🖥️ DRAG & DROP - SÓ EM DESKTOP (Windows/Mac/Linux)
+                if (_isDesktop) ...[
+                  Expanded(
+                    flex: 1,
+                    child: SizedBox(
+                      height: 145,
+                      child: DropTarget(
+                        onDragEntered: (_) {
+                          setState(() => isDragging = true);
+                        },
+                        onDragExited: (_) {
+                          setState(() => isDragging = false);
+                        },
+                        onDragDone: (detail) async {
+                          for (final file in detail.files) {
+                            if (tempPhotos.length >= 4) break;
+                            await _uploadFromPath(file.path);
+                          }
+                          setState(() => isDragging = false);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: isDragging
+                                ? Colors.blue.withOpacity(0.08)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isDragging
+                                  ? Colors.blue
+                                  : const Color.fromARGB(255, 224, 192, 241),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.cloud_upload, size: 24),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Arraste imagens aqui',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                                SizedBox(height: 2),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+
+                // 🖼️ MINIATURAS (direita)
+                SizedBox(
+                  width: 110,
+                  height: 130,
+                  child: tempPhotos.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Sem fotos',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: tempPhotos.length,
+                          itemBuilder: (context, index) {
+                            final photoPath = tempPhotos[index];
+                            final isUrl = photoPath.startsWith('http');
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: isUrl
+                                        ? Image.network(
+                                            photoPath,
+                                            width: 110,
+                                            height: 70,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.file(
+                                            File(photoPath),
+                                            width: 110,
+                                            height: 70,
+                                            fit: BoxFit.cover,
+                                          ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(
+                                          () => tempPhotos.removeAt(index),
+                                        );
+                                      },
+                                      child: const CircleAvatar(
+                                        radius: 9,
+                                        backgroundColor: Colors.red,
+                                        child: Icon(
+                                          Icons.close,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-
-            // DRAG & DROP (Desktop)
-            if (!kIsWeb &&
-                (Platform.isWindows || Platform.isLinux || Platform.isMacOS))
-              _buildDragDropArea(loc),
-
-            const SizedBox(height: 8),
-
-            // MINIATURAS DE FOTOS
-            if (tempPhotos.isNotEmpty) _buildPhotoThumbnails(),
 
             const SizedBox(height: 12),
 
             // BOTÕES DE AÇÃO
             _buildActionButtons(loc),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ========== DRAG & DROP AREA ==========
-  Widget _buildDragDropArea(AppLocalizations loc) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: SizedBox(
-        width: 350,
-        height: 120,
-        child: DropTarget(
-          onDragDone: (detail) async {
-            for (final file in detail.files) {
-              if (tempPhotos.length >= 4) break;
-
-              // ✅ MOSTRAR LOADING
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) =>
-                    const Center(child: CircularProgressIndicator()),
-              );
-
-              try {
-                // ✅ UPLOAD PARA FIREBASE
-                final downloadUrl = await FirebaseStorageService.uploadPhoto(
-                  localPath: file.path,
-                  walkdownId: widget.walkdown.id!,
-                  occurrenceId: _editingOccurrence?.id ??
-                      'temp_${DateTime.now().millisecondsSinceEpoch}',
-                );
-
-                setState(() => tempPhotos.add(downloadUrl));
-
-                if (mounted) Navigator.pop(context);
-              } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Erro: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            }
-          },
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 241, 234, 247),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade400),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.photo_camera, size: 32, color: Colors.grey),
-                  const SizedBox(height: 8),
-                  Text(loc.dragPhotosHint),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -462,7 +579,8 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
                   child: const CircleAvatar(
                     radius: 10,
                     backgroundColor: Colors.red,
-                    child: Icon(Icons.close, size: 14, color: Colors.white),
+                    child: Icon(Icons.close,
+                        size: 14, color: Color.fromARGB(255, 205, 184, 253)),
                   ),
                 ),
               ),
@@ -473,12 +591,13 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
     );
   }
 
-  // ========== BOTÕES DE AÇÃO ==========
+// ========== BOTÕES DE AÇÃO ==========
   Widget _buildActionButtons(AppLocalizations loc) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
+          // ✅ BOTÕES ORIGINAIS
           ElevatedButton.icon(
             onPressed: () => _pickPhoto(ImageSource.camera),
             icon: const Icon(Icons.camera_alt),

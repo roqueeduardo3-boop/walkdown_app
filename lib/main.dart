@@ -8,28 +8,83 @@ import 'pdf_generator.dart';
 import 'services/excel_api_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:walkdown_app/l10n/app_localizations.dart';
-
-// ✅ CORREÇÃO DOS IMPORTS DO FIREBASE
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // ✅ IMPORT CRÍTICO
+import 'firebase_options.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
+import 'services/cache_cleanup_service.dart';
+import 'services/excel_syncfusion_service.dart';
 
+// ========== SYNCCONTROLLER EMBUTIDO ==========
+class SyncController extends ChangeNotifier {
+  bool _isSyncing = false;
+  double _progress = 0.0;
+  String _status = 'Pronto';
+
+  bool get isSyncing => _isSyncing;
+  double get progress => _progress;
+  String get status => _status;
+
+  final WalkdownDatabase _db = WalkdownDatabase.instance;
+
+  Future<void> syncUpBackground(VoidCallback onComplete) async {
+    if (_isSyncing) return;
+
+    _isSyncing = true;
+    _progress = 0.0;
+    _status = 'Sincronizando...';
+    notifyListeners();
+
+    try {
+      final count = await _db.syncNewWalkdownsToFirestore();
+      _progress = 1.0;
+      _status = '✅ $count walkdowns enviados';
+      await Future.delayed(const Duration(seconds: 1));
+      onComplete();
+    } catch (e) {
+      _status = '❌ Erro: $e';
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> pullDownBackground(VoidCallback onComplete) async {
+    if (_isSyncing) return;
+
+    _isSyncing = true;
+    _progress = 0.0;
+    _status = 'Baixando do Firestore...';
+    notifyListeners();
+
+    try {
+      final count = await _db.pullWalkdownsFromFirestore();
+      _progress = 1.0;
+      _status = '✅ $count walkdowns baixados';
+      await Future.delayed(const Duration(seconds: 1));
+      onComplete();
+    } catch (e) {
+      _status = '❌ Erro: $e';
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+}
+
+// ========== MAIN ==========
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ INICIALIZAÇÃO FIREBASE CORRIGIDA
   try {
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform, // ✅ AGORA FUNCIONA
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('✅ Firebase inicializado com sucesso');
+    print('✅ Firebase inicializado');
   } catch (e) {
     print('❌ Erro Firebase: $e');
   }
 
-  // 🔓 FORÇA Firebase Auth init (solução oficial)
   try {
     await FirebaseAuth.instance.authStateChanges().first;
     print('✅ Firebase Auth inicializado');
@@ -37,13 +92,14 @@ Future<void> main() async {
     print('⚠️ Auth init warning: $e');
   }
 
-  // SQFLite FFI para Windows/Linux
+  // 🧹 CLEANUP CACHE AUTOMÁTICO (NOVO!)
+  await CacheCleanupService.fullCleanup();
+
   if (Platform.isWindows || Platform.isLinux) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
 
-  // Filtro de erros de teclado / JSON
   FlutterError.onError = (details) {
     if (details.exception.toString().contains('KeyUpEvent') ||
         details.exception.toString().contains('KeyDownEvent') ||
@@ -56,7 +112,6 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-// Resto do código permanece IGUAL...
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -121,8 +176,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// [Resto do código do RootPage, LoginPage, etc. permanece EXATAMENTE IGUAL ao teu original]
-
 class RootPage extends StatelessWidget {
   const RootPage({super.key});
 
@@ -140,11 +193,9 @@ class RootPage extends StatelessWidget {
         final user = snapshot.data;
 
         if (user == null) {
-          print('🚫 User NULL - mostrando LoginPage');
           return const LoginPage();
         }
 
-        print('✅ User autenticado: ${user.email}');
         return const LanguageSelectionPage();
       },
     );
@@ -177,6 +228,7 @@ class _LoginPageState extends State<LoginPage> {
       _loading = true;
       _error = null;
     });
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
@@ -204,12 +256,14 @@ class _LoginPageState extends State<LoginPage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: _emailCtrl,
               decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _passCtrl,
               decoration: const InputDecoration(labelText: 'Password'),
@@ -221,7 +275,7 @@ class _LoginPageState extends State<LoginPage> {
                 _error!,
                 style: const TextStyle(color: Colors.red),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _loading ? null : _signIn,
               child: _loading
@@ -244,7 +298,6 @@ class LanguageSelectionPage extends StatelessWidget {
 
   void _setLanguageAndGo(BuildContext context, AppLanguage lang) {
     appLanguage.value = lang;
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const WalkdownHomePage()),
     );
@@ -290,7 +343,6 @@ class LanguageSelectionPage extends StatelessWidget {
   }
 }
 
-// ========== PÁGINA PRINCIPAL ==========
 class WalkdownHomePage extends StatefulWidget {
   const WalkdownHomePage({super.key});
 
@@ -300,14 +352,21 @@ class WalkdownHomePage extends StatefulWidget {
 
 class _WalkdownHomePageState extends State<WalkdownHomePage> {
   final List<WalkdownData> _walkdowns = [];
+  final SyncController _syncController = SyncController();
   bool _isLoading = false;
-  bool _isSyncing = false;
 
-  Future<int> _getOccurrenceCount(int? walkdownId) async {
-    if (walkdownId == null) return 0;
-    final occs =
-        await WalkdownDatabase.instance.getOccurrencesForWalkdown(walkdownId);
-    return occs.length;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadWalkdownsFromDb();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadWalkdownsFromDb() async {
@@ -332,79 +391,39 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
     }
   }
 
-  Future<void> _syncNewWalkdowns() async {
-    if (_isSyncing) return;
-
-    setState(() => _isSyncing = true);
-
-    try {
-      // Sync walkdowns novos
-      final count =
-          await WalkdownDatabase.instance.syncNewWalkdownsToFirestore();
-
-      // 🔥 FORÇA sync de walkdowns EXISTENTES (checklist + occurrences)
+  void _syncNewWalkdowns() {
+    _syncController.syncUpBackground(() async {
       for (final w in _walkdowns) {
         if (w.id != null && w.firestoreId != null) {
           await WalkdownDatabase.instance.forceSyncWalkdown(w.id!);
         }
       }
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '✅ Sincronizados $count novos walkdowns + dados atualizados.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
       await _loadWalkdownsFromDb();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao sincronizar: $e'),
-        ),
-      );
-    } finally {
+
       if (mounted) {
-        setState(() => _isSyncing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_syncController.status),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-    }
+    });
   }
 
-  Future<void> _pullFromFirestore() async {
-    if (_isSyncing) return;
-
-    setState(() => _isSyncing = true);
-
-    try {
-      final count =
-          await WalkdownDatabase.instance.pullWalkdownsFromFirestore();
-
-      // RECARREGAR LISTA DEPOIS DO PULL
+  void _pullFromFirestore() {
+    _syncController.pullDownBackground(() async {
       await _loadWalkdownsFromDb();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ $count walkdowns sincronizados do Firestore.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro no pull: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
       if (mounted) {
-        setState(() => _isSyncing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_syncController.status),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-    }
+    });
   }
 
   Future<void> _openNewWalkdownForm() async {
@@ -420,7 +439,6 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
     try {
       final id = await WalkdownDatabase.instance.insertWalkdown(result);
       print('✅ Walkdown criado com ID: $id');
-
       await _loadWalkdownsFromDb();
     } catch (e) {
       print('❌ Erro ao criar walkdown: $e');
@@ -441,410 +459,416 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
 
-    Future<int> _countUnsyncedData() async {
-      return await WalkdownDatabase.instance
-          .countUnsyncedWalkdowns(); // ✅ VERDE!
-    }
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: Image.asset('assets/logo_turbina.png', height: 100),
+        leading: PopupMenuButton<String>(
+          icon: const Icon(Icons.menu),
+          onSelected: (value) async {
+            if (value == 'logout') {
+              final unsyncedCount =
+                  await WalkdownDatabase.instance.countUnsyncedWalkdowns();
 
-    return PopScope(
-        canPop: false,
-        onPopInvoked: (bool didPop) async {
-          if (didPop) return;
-
-          final unsyncedData = await _countUnsyncedData();
-
-          if (unsyncedData > 0) {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Dados não sincronizados'),
-                content: Text(
-                    '$unsyncedData pontos não enviados para Firestore. Sair mesmo assim?'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancelar')),
-                  TextButton(
-                      onPressed: () {
-                        Navigator.pop(context, true);
-                      },
-                      child: const Text('Sair')),
-                ],
-              ),
-            );
-            if (confirm != true) return;
-          }
-
-          Navigator.pop(context);
-        },
-        child: Scaffold(
-          // ← TODO o teu Scaffold IGUAL!
-
-          appBar: AppBar(
-            centerTitle: true,
-            title: Image.asset('assets/logo_turbina.png', height: 100),
-            leading: PopupMenuButton<String>(
-              icon: const Icon(Icons.menu),
-              tooltip: 'Menu',
-              onSelected: (value) async {
-                print('🔘 Menu selecionado: $value');
-
-                if (value == 'logout') {
-                  print('🚪 Iniciando logout...');
-
-                  // ← resto do logout IGUAL (confirm logout, clear DB, signOut...)
-
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Logout'),
-                      content: const Text('Tens a certeza que queres sair?'),
-                      actions: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancelar')),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: FilledButton.styleFrom(
-                              backgroundColor: Colors.red),
-                          child: const Text('Sair'),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm == true) {
-                    print('🔓 Fazendo signOut...');
-                    try {
-                      print('🗑️ Limpando base de dados local...');
-                      await WalkdownDatabase.instance.clearAllData();
-                      await FirebaseAuth.instance.signOut();
-                      print('✅ SignOut concluído!');
-
-                      if (!context.mounted) return;
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const RootPage()),
-                        (route) => false,
-                      );
-                    } catch (e) {
-                      print('❌ Erro no signOut: $e');
-                    }
-                  }
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Logout'),
+              if (unsyncedCount > 0) {
+                final confirmUnsynced = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('⚠️ Dados não sincronizados'),
+                    content: Text(
+                        '$unsyncedCount ponto(s) não foram enviados.\n\nQueres sair mesmo assim?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.orange),
+                        child: const Text('Sair sem sincronizar'),
+                      ),
                     ],
                   ),
+                );
+
+                if (confirmUnsynced != true) return;
+              }
+
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Tens a certeza que queres sair?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style:
+                          FilledButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Sair'),
+                    ),
+                  ],
                 ),
-              ],
+              );
+
+              if (confirm == true) {
+                try {
+                  await WalkdownDatabase.instance.clearAllData();
+                  await FirebaseAuth.instance.signOut();
+
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const RootPage()),
+                    (route) => false,
+                  );
+                } catch (e) {
+                  print('❌ Erro no signOut: $e');
+                }
+              }
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Logout'),
+                ],
+              ),
             ),
-            actions: [
-              // PUSH (enviar novos para Firestore)
-              IconButton(
-                icon: _isSyncing
+          ],
+        ),
+        actions: [
+          ListenableBuilder(
+            listenable: _syncController,
+            builder: (context, _) {
+              return IconButton(
+                icon: _syncController.isSyncing
                     ? const SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_upload),
-                tooltip: 'Enviar novos walkdowns',
-                onPressed: _isSyncing ? null : _syncNewWalkdowns,
-              ),
-              // PULL (baixar do Firestore)
-              IconButton(
-                icon: _isSyncing
+                tooltip: 'Enviar dados',
+                onPressed: _syncController.isSyncing ? null : _syncNewWalkdowns,
+              );
+            },
+          ),
+          ListenableBuilder(
+            listenable: _syncController,
+            builder: (context, _) {
+              return IconButton(
+                icon: _syncController.isSyncing
                     ? const SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_download),
-                tooltip: 'Baixar do Firestore',
-                onPressed: _isSyncing ? null : _pullFromFirestore,
-              ),
-            ],
+                tooltip: 'Baixar dados',
+                onPressed:
+                    _syncController.isSyncing ? null : _pullFromFirestore,
+              );
+            },
           ),
-          body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : (_walkdowns.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            loc.walkdownWelcomeTitle,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Material(
-                            elevation: 10,
-                            shadowColor: Colors.black,
-                            borderRadius: BorderRadius.circular(12),
-                            child: FilledButton.icon(
-                              onPressed: _openNewWalkdownForm,
-                              icon: const Icon(Icons.add),
-                              label: Text(loc.newWalkdownButton),
-                              style: ButtonStyle(
-                                padding: WidgetStateProperty.all(
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 32, vertical: 16),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : (_walkdowns.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        loc.walkdownWelcomeTitle,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    )
-                  : ListView.separated(
-                      itemCount: _walkdowns.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final w = _walkdowns[index];
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: _openNewWalkdownForm,
+                        icon: const Icon(Icons.add),
+                        label: Text(loc.newWalkdownButton),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: _walkdowns.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final w = _walkdowns[index];
 
-                        return Card(
-                          color: Colors.white,
-                          elevation: 2,
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    return Card(
+                      color: Colors.white,
+                      elevation: 2,
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      child: ListTile(
+                        leading: w.isCompleted
+                            ? const Icon(Icons.check_circle,
+                                color: Colors.green, size: 30)
+                            : const Icon(Icons.radio_button_unchecked,
+                                color: Colors.grey, size: 30),
+                        title: Text(
+                          w.projectInfo.projectName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
                           ),
-                          child: ListTile(
-                            leading: w.isCompleted
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 30,
-                                  )
-                                : const Icon(
-                                    Icons.radio_button_unchecked,
-                                    color: Colors.grey,
-                                    size: 30,
-                                  ),
-                            title: Text(
-                              w.projectInfo.projectName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
+                        ),
+                        subtitle: Text(
+                          '${w.projectInfo.towerNumber} · ${_formatDate(w.projectInfo.date)}'
+                          '${w.occurrences.isNotEmpty ? ' · 📋 ${w.occurrences.length} ocorrências' : ''}'
+                          '${w.isCompleted ? ' · ${loc.walkdownCompletedLabel}' : ''}',
+                        ),
+                        onTap: () async {
+                          if (w.id == null) return;
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  WalkdownChecklistPage(walkdown: w),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                    '${w.projectInfo.towerNumber} · ${_formatDate(w.projectInfo.date)}'),
-                                FutureBuilder<int>(
-                                  future: _getOccurrenceCount(
-                                      w.id), // ← NOVA função!
-                                  builder: (context, snapshot) {
-                                    final count = snapshot.data ?? 0;
-                                    return Text(
-                                      '${count > 0 ? '📋 $count ocorrências' : ''}'
-                                      '${w.isCompleted ? ' · ${loc.walkdownCompletedLabel}' : ''}'
-                                      '${w.firestoreId != null && DateTime.now().difference(w.projectInfo.date).inDays < 7 ? ' 🆕' : ''}',
-                                      style: const TextStyle(
-                                          color: Colors.orange, fontSize: 12),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                            onTap: () {
-                              if (w.id == null) return;
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      WalkdownChecklistPage(walkdown: w),
-                                ),
-                              );
-                            },
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // PDF
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.picture_as_pdf,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () async {
-                                    if (w.id == null) return;
+                          );
+                          await _loadWalkdownsFromDb();
+                        },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.picture_as_pdf,
+                                  color: Colors.red),
+                              onPressed: () async {
+                                if (w.id == null) return;
 
-                                    final occurrences = await WalkdownDatabase
-                                        .instance
-                                        .getOccurrencesForWalkdown(w.id!);
+                                final occurrences = await WalkdownDatabase
+                                    .instance
+                                    .getOccurrencesForWalkdown(w.id!);
+
+                                if (!mounted) return;
+
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (_) => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+
+                                try {
+                                  final pdfFile =
+                                      await PdfGenerator.generateWalkdownPdf(
+                                    walkdown: w,
+                                    occurrences: occurrences,
+                                  );
+
+                                  if (!mounted) return;
+                                  Navigator.pop(context);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text(loc.pdfGenerated(pdfFile.path)),
+                                      action: SnackBarAction(
+                                        label: loc.pdfOpenLabel,
+                                        onPressed: () async {
+                                          await PdfGenerator.previewPdf(
+                                            walkdown: w,
+                                            occurrences: occurrences,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text('${loc.pdfErrorLabel}: $e')),
+                                  );
+                                }
+                              },
+                              tooltip: loc.pdfTooltip,
+                            ),
+                            if (Platform.isWindows ||
+                                Platform.isLinux ||
+                                Platform.isMacOS)
+                              IconButton(
+                                icon: const Icon(Icons.table_chart,
+                                    color: Colors.green),
+                                onPressed: () async {
+                                  if (w.id == null) return;
+
+                                  // ✅ MOSTRAR DIÁLOGO DE ESCOLHA
+                                  final choice = await showDialog<String>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Gerar Excel'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Escolha o método de geração:',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          ListTile(
+                                            leading: Icon(Icons.image,
+                                                color: Colors.blue),
+                                            title: Text(
+                                                'Excel com Fotos Embutidas'),
+                                            subtitle: Text(
+                                                'Fotos ficam permanentes no arquivo\n(geração local - Syncfusion)'),
+                                            onTap: () => Navigator.pop(
+                                                context, 'syncfusion'),
+                                          ),
+                                          const Divider(),
+                                          ListTile(
+                                            leading: Icon(Icons.cloud,
+                                                color: Colors.orange),
+                                            title: Text('Excel com URLs'),
+                                            subtitle: Text(
+                                                'Fotos como links do Firebase\n(backend - PythonAnywhere)'),
+                                            onTap: () => Navigator.pop(
+                                                context, 'backend'),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: Text('Cancelar'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (choice == null) return;
+
+                                  // Mostrar loading
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (_) => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+
+                                  try {
+                                    String filePath;
+
+                                    if (choice == 'syncfusion') {
+                                      // ✅ NOVO: Syncfusion local com fotos embutidas
+                                      filePath = await ExcelSyncfusionService
+                                          .generateExcelWithEmbeddedImages(w);
+                                    } else {
+                                      // Backend atual
+                                      filePath =
+                                          await ExcelApiService.generateExcel(
+                                              w);
+                                    }
 
                                     if (!mounted) return;
+                                    Navigator.pop(context);
 
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (_) => const Center(
-                                        child: CircularProgressIndicator(),
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content:
+                                            Text('✅ Excel gerado: $filePath'),
+                                        backgroundColor: Colors.green,
+                                        action: SnackBarAction(
+                                          label: 'Abrir',
+                                          onPressed: () async {
+                                            // Abrir arquivo
+                                            try {
+                                              await Process.run(
+                                                  'explorer', [filePath]);
+                                            } catch (e) {
+                                              print('Erro ao abrir: $e');
+                                            }
+                                          },
+                                        ),
                                       ),
                                     );
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    Navigator.pop(context);
 
-                                    try {
-                                      final pdfFile = await PdfGenerator
-                                          .generateWalkdownPdf(
-                                        walkdown: w,
-                                        occurrences: occurrences,
-                                      );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Erro: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                                tooltip: 'Gerar Excel',
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () async {
+                                if (w.id == null) return;
 
-                                      if (!mounted) return;
-                                      Navigator.pop(context);
-
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            loc.pdfGenerated(pdfFile.path),
-                                          ),
-                                          action: SnackBarAction(
-                                            label: loc.pdfOpenLabel,
-                                            onPressed: () async {
-                                              await PdfGenerator.previewPdf(
-                                                walkdown: w,
-                                                occurrences: occurrences,
-                                              );
-                                            },
-                                          ),
-                                          duration: const Duration(seconds: 5),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      if (!mounted) return;
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            '${loc.pdfErrorLabel}: $e',
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  tooltip: loc.pdfTooltip,
-                                ),
-                                // EXCEL
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.table_chart,
-                                    color: Colors.green,
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text(loc.deleteWalkdownTitle),
+                                    content: Text(loc.deleteWalkdownQuestion),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: Text(loc.cancelButtonLabel),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: Text(loc.deleteButtonLabel),
+                                      ),
+                                    ],
                                   ),
-                                  onPressed: () async {
-                                    if (w.id == null) return;
+                                );
 
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (_) => const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
+                                if (confirm != true) return;
 
-                                    try {
-                                      await ExcelApiService.generateExcel(w);
-
-                                      if (!mounted) return;
-                                      Navigator.pop(context);
-
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(loc.excelSuccessLabel),
-                                          backgroundColor: Colors.green,
-                                          duration: const Duration(seconds: 3),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      if (!mounted) return;
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                              '${loc.excelErrorLabel}: $e'),
-                                          backgroundColor: Colors.red,
-                                          duration: const Duration(seconds: 5),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  tooltip: loc.excelTooltip,
-                                ),
-                                // DELETE
-                                IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () async {
-                                    if (w.id == null) return;
-
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          title: Text(loc.deleteWalkdownTitle),
-                                          content:
-                                              Text(loc.deleteWalkdownQuestion),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(context)
-                                                      .pop(false),
-                                              child:
-                                                  Text(loc.cancelButtonLabel),
-                                            ),
-                                            FilledButton(
-                                              onPressed: () =>
-                                                  Navigator.of(context)
-                                                      .pop(true),
-                                              child:
-                                                  Text(loc.deleteButtonLabel),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-
-                                    if (confirm != true) return;
-
-                                    await WalkdownDatabase.instance
-                                        .deleteWalkdown(w.id!);
-                                    await _loadWalkdownsFromDb();
-                                  },
-                                ),
-                              ],
+                                await WalkdownDatabase.instance
+                                    .deleteWalkdown(w.id!);
+                                await _loadWalkdownsFromDb();
+                              },
                             ),
-                          ),
-                        );
-                      },
-                    )),
-          floatingActionButton: _walkdowns.isEmpty
-              ? null
-              : FloatingActionButton(
-                  onPressed: _openNewWalkdownForm,
-                  child: const Icon(Icons.add),
-                ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerFloat,
-        ));
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                )),
+      floatingActionButton: _walkdowns.isEmpty
+          ? null
+          : FloatingActionButton(
+              onPressed: _openNewWalkdownForm,
+              child: const Icon(Icons.add),
+            ),
+    );
   }
 }
 
-// ========== DIALOG NOVO WALKDOWN ==========
 class _NewWalkdownDialog extends StatefulWidget {
   const _NewWalkdownDialog();
 
@@ -903,39 +927,29 @@ class _NewWalkdownDialogState extends State<_NewWalkdownDialog> {
             children: [
               TextFormField(
                 controller: _projectNameController,
-                decoration: InputDecoration(
-                  labelText: loc.projectNameLabel,
-                ),
+                decoration: InputDecoration(labelText: loc.projectNameLabel),
                 validator: (value) => (value == null || value.isEmpty)
                     ? loc.fieldRequiredLabel
                     : null,
               ),
               TextFormField(
                 controller: _projectNumberController,
-                decoration: InputDecoration(
-                  labelText: loc.projectNumberLabel,
-                ),
+                decoration: InputDecoration(labelText: loc.projectNumberLabel),
               ),
               TextFormField(
                 controller: _supervisorController,
-                decoration: InputDecoration(
-                  labelText: loc.supervisorLabel,
-                ),
+                decoration: InputDecoration(labelText: loc.supervisorLabel),
                 validator: (value) => (value == null || value.isEmpty)
                     ? loc.fieldRequiredLabel
                     : null,
               ),
               TextFormField(
                 controller: _roadController,
-                decoration: InputDecoration(
-                  labelText: loc.roadLabel,
-                ),
+                decoration: InputDecoration(labelText: loc.roadLabel),
               ),
               TextFormField(
                 controller: _towerController,
-                decoration: InputDecoration(
-                  labelText: loc.towerLabel,
-                ),
+                decoration: InputDecoration(labelText: loc.towerLabel),
                 validator: (value) => (value == null || value.isEmpty)
                     ? loc.fieldRequiredLabel
                     : null,
@@ -989,41 +1003,34 @@ class _NewWalkdownDialogState extends State<_NewWalkdownDialog> {
         ),
       ),
       actions: [
-        Material(
-          elevation: 4,
-          borderRadius: BorderRadius.circular(10),
-          child: FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.all(const Color(0xFFB0BEC5)),
-            ),
-            child: Text(loc.cancelButtonLabel),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.all(const Color(0xFFB0BEC5)),
           ),
+          child: Text(loc.cancelButtonLabel),
         ),
-        Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(10),
-          child: FilledButton(
-            onPressed: () {
-              if (_formKey.currentState?.validate() != true) return;
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() != true) return;
 
-              final data = WalkdownData(
-                projectInfo: ProjectInfo(
-                  projectName: _projectNameController.text.trim(),
-                  projectNumber: _projectNumberController.text.trim(),
-                  supervisorName: _supervisorController.text.trim(),
-                  road: _roadController.text.trim(),
-                  towerNumber: _towerController.text.trim(),
-                  date: _selectedDate,
-                ),
-                occurrences: [],
-                towerType: _towerType,
-                turbineName: '',
-              );
-              Navigator.of(context).pop(data);
-            },
-            child: Text(loc.saveButtonLabel),
-          ),
+            final data = WalkdownData(
+              ownerUid: FirebaseAuth.instance.currentUser?.uid,
+              projectInfo: ProjectInfo(
+                projectName: _projectNameController.text.trim(),
+                projectNumber: _projectNumberController.text.trim(),
+                supervisorName: _supervisorController.text.trim(),
+                road: _roadController.text.trim(),
+                towerNumber: _towerController.text.trim(),
+                date: _selectedDate,
+              ),
+              occurrences: [],
+              towerType: _towerType,
+              turbineName: '',
+            );
+            Navigator.of(context).pop(data);
+          },
+          child: Text(loc.saveButtonLabel),
         ),
       ],
     );

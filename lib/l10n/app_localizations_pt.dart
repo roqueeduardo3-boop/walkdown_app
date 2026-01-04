@@ -36,7 +36,8 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dragPhotosHint => 'Arrasta aqui as fotos (PC)';
 
   @override
-  String get editOccurrenceMessage => 'A editar ocorrência. Clica Cancelar para criar nova.';
+  String get editOccurrenceMessage =>
+      'A editar ocorrência. Clica Cancelar para criar nova.';
 
   @override
   String get occurrenceUpdatedMessage => 'Ocorrência atualizada';
@@ -104,7 +105,8 @@ class AppLocalizationsPt extends AppLocalizations {
   String get deleteWalkdownTitle => 'Delete walkdown';
 
   @override
-  String get deleteWalkdownQuestion => 'Are you sure you want to delete this walkdown?';
+  String get deleteWalkdownQuestion =>
+      'Are you sure you want to delete this walkdown?';
 
   @override
   String get deleteButtonLabel => 'Delete';

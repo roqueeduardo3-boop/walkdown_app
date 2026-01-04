@@ -65,5 +65,4 @@ class DefaultFirebaseOptions {
     authDomain: 'walkdown-sync.firebaseapp.com',
     storageBucket: 'walkdown-sync.firebasestorage.app',
   );
-
 }
