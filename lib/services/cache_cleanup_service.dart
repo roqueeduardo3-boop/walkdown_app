@@ -63,7 +63,7 @@ class CacheCleanupService {
         }
       }
 
-      final maxSizeBytes = _maxCacheSizeMB * 1024 * 1024;
+      const maxSizeBytes = _maxCacheSizeMB * 1024 * 1024;
       if (totalSize <= maxSizeBytes) {
         print(
             '✅ Cache dentro do limite: ${(totalSize / 1024 / 1024).toStringAsFixed(1)}MB');

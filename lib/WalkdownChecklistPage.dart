@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:walkdown_app/l10n/app_localizations.dart';
 import 'models.dart';
 import 'occurrences_page.dart'; // ✅ arquivo occurrences_page.dart
 import 'database.dart';

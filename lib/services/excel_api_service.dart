@@ -2,13 +2,12 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path; // ✅ ADICIONAR
+// ✅ ADICIONAR
 import 'package:walkdown_app/models.dart';
 import 'package:walkdown_app/database.dart';
-import 'package:walkdown_app/services/firebase_storage_service.dart'; // ✅ ADICIONAR
+// ✅ ADICIONAR
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart';
-import 'package:archive/archive.dart';
 
 class ExcelApiService {
   static const String baseUrl = 'https://edrwalkdown.pythonanywhere.com';

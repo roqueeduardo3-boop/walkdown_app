@@ -374,6 +374,16 @@ class WalkdownDatabase {
     final db = await database;
     final user = FirebaseAuth.instance.currentUser;
 
+    // ✅ ADICIONA ESTES LOGS
+    print('🔐 User atual: ${user?.email}');
+    print('🔐 User UID: ${user?.uid}');
+    print('🔐 User autenticado: ${user != null}');
+
+    if (user == null) {
+      print('❌ ERRO: Usuário não autenticado!');
+      return;
+    }
+
     final docId =
         walkdown.firestoreId ?? _firestore.collection('walkdowns').doc().id;
 

@@ -129,7 +129,7 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         widget.walkdown.id!,
       );
 
-      print('✅ SAVED occurrence ID: ${uniqueId}'); // ← ADICIONA1!
+      print('✅ SAVED occurrence ID: $uniqueId'); // ← ADICIONA1!
 
       setState(() {
         occurrences
@@ -205,10 +205,10 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(
+      builder: (_) => const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             CircularProgressIndicator(color: Colors.white),
             SizedBox(height: 12),
             Text(

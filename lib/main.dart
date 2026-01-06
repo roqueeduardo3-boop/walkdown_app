@@ -9,13 +9,14 @@ import 'services/excel_api_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:walkdown_app/l10n/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/cache_cleanup_service.dart';
 import 'services/excel_syncfusion_service.dart';
+import 'config.dart';
+import 'services/excel_syncfusion_service.dart';
 
-// ========== SYNCCONTROLLER EMBUTIDO ==========
+// ========== SYNCCONTROLLER ==========
 class SyncController extends ChangeNotifier {
   bool _isSyncing = false;
   double _progress = 0.0;
@@ -78,7 +79,7 @@ Future<void> main() async {
 
   try {
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+      options: firebaseOptions,
     );
     print('✅ Firebase inicializado');
   } catch (e) {
@@ -92,7 +93,6 @@ Future<void> main() async {
     print('⚠️ Auth init warning: $e');
   }
 
-  // 🧹 CLEANUP CACHE AUTOMÁTICO (NOVO!)
   await CacheCleanupService.fullCleanup();
 
   if (Platform.isWindows || Platform.isLinux) {
@@ -112,8 +112,17 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+// ========== APP ==========
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+  Future<void> _initializeDatabase() async {
+    try {
+      await WalkdownDatabase.instance.database;
+    } catch (e) {
+      print('Erro ao inicializar DB: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,6 +185,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// ========== ROOT PAGE (DETECTA LOGIN) ==========
 class RootPage extends StatelessWidget {
   const RootPage({super.key});
 
@@ -193,7 +203,7 @@ class RootPage extends StatelessWidget {
         final user = snapshot.data;
 
         if (user == null) {
-          return const LoginPage();
+          return const LoginPage(); // ✅ COM BLOQUEIO DEV
         }
 
         return const LanguageSelectionPage();
@@ -202,14 +212,7 @@ class RootPage extends StatelessWidget {
   }
 }
 
-Future<void> _initializeDatabase() async {
-  try {
-    await WalkdownDatabase.instance.database;
-  } catch (e) {
-    print('Erro ao inicializar DB: $e');
-  }
-}
-
+// ========== LOGIN PAGE (COM BLOQUEIO DEV) ==========
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -223,6 +226,13 @@ class _LoginPageState extends State<LoginPage> {
   bool _loading = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _signIn() async {
     setState(() {
       _loading = true;
@@ -230,17 +240,51 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // 1. FAZER LOGIN NO FIREBASE
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
       );
+
+      final user = credential.user;
+
+      // 2. ✅ VERIFICAR SE É DEV E SE EMAIL É PERMITIDO
+      if (kUseDevFirebase) {
+        if (!isEmailAllowedInDev(user?.email)) {
+          // ❌ EMAIL NÃO AUTORIZADO NO DEV
+          await FirebaseAuth.instance.signOut();
+
+          if (!mounted) return;
+          setState(() {
+            _error = '🚫 Acesso DEV bloqueado!\n\n'
+                'Apenas estes emails podem entrar:\n'
+                '${allowedDevEmails.join('\n')}';
+          });
+          return;
+        }
+
+        // ✅ EMAIL AUTORIZADO NO DEV
+        print('✅ DEV: Email autorizado - ${user?.email}');
+      }
+
+      // 3. LOGIN ACEITE - StreamBuilder detecta automaticamente
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
-        _error = e.message;
+        if (e.code == 'user-not-found') {
+          _error = '❌ Utilizador não encontrado';
+        } else if (e.code == 'wrong-password') {
+          _error = '❌ Password incorreta';
+        } else if (e.code == 'invalid-email') {
+          _error = '❌ Email inválido';
+        } else {
+          _error = '❌ Erro: ${e.message}';
+        }
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = '❌ Erro: $e';
       });
     } finally {
       if (mounted) {
@@ -252,46 +296,200 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login Walkdown')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailCtrl,
-              decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
+      appBar: AppBar(
+        title: Text(kUseDevFirebase ? '🧪 Walkdown DEV' : '🚀 Walkdown App'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // LOGO
+                Image.asset(
+                  'assets/1logo_2ws.png',
+                  height: 100,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.wind_power, size: 80),
+                ),
+                const SizedBox(height: 32),
+
+                // TÍTULO
+                Text(
+                  'Login',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+
+                // INDICADOR DEV/PROD
+                if (kUseDevFirebase)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.warning, size: 16, color: Colors.orange),
+                        SizedBox(width: 4),
+                        Text(
+                          'Modo DEV',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 32),
+
+                // EMAIL
+                TextField(
+                  controller: _emailCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 16),
+
+                // PASSWORD
+                TextField(
+                  controller: _passCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock),
+                  ),
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _signIn(),
+                ),
+                const SizedBox(height: 24),
+
+                // ERRO
+                if (_error != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                if (_error != null) const SizedBox(height: 16),
+
+                // BOTÃO LOGIN
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _signIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF5C7CBA),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Entrar',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+
+                // INFO DEV
+                if (kUseDevFirebase) ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.info, size: 16, color: Colors.blue),
+                            SizedBox(width: 4),
+                            Text(
+                              'Emails autorizados no DEV:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...allowedDevEmails.map((email) => Padding(
+                              padding: const EdgeInsets.only(left: 20, top: 2),
+                              child: Text(
+                                '• $email',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            )),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passCtrl,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            if (_error != null)
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loading ? null : _signIn,
-              child: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Entrar'),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
+
+// ========== RESTO DO CÓDIGO IGUAL (LanguageSelectionPage, WalkdownHomePage, etc) ==========
+// [O restante do código do teu main.dart atual continua aqui...]
 
 class LanguageSelectionPage extends StatelessWidget {
   const LanguageSelectionPage({super.key});
@@ -342,6 +540,9 @@ class LanguageSelectionPage extends StatelessWidget {
     );
   }
 }
+
+// ✅ TODO O RESTO DO TEU CÓDIGO (WalkdownHomePage, _NewWalkdownDialog, etc)
+// CONTINUA EXATAMENTE IGUAL - NÃO MUDES NADA!
 
 class WalkdownHomePage extends StatefulWidget {
   const WalkdownHomePage({super.key});
@@ -703,6 +904,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                               },
                               tooltip: loc.pdfTooltip,
                             ),
+                            // ✅ BOTÃO EXCEL - CÓDIGO LIMPO
                             if (Platform.isWindows ||
                                 Platform.isLinux ||
                                 Platform.isMacOS)
@@ -711,56 +913,6 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                     color: Colors.green),
                                 onPressed: () async {
                                   if (w.id == null) return;
-
-                                  // ✅ MOSTRAR DIÁLOGO DE ESCOLHA
-                                  final choice = await showDialog<String>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Gerar Excel'),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Escolha o método de geração:',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.bold),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          ListTile(
-                                            leading: Icon(Icons.image,
-                                                color: Colors.blue),
-                                            title: Text(
-                                                'Excel com Fotos Embutidas'),
-                                            subtitle: Text(
-                                                'Fotos ficam permanentes no arquivo\n(geração local - Syncfusion)'),
-                                            onTap: () => Navigator.pop(
-                                                context, 'syncfusion'),
-                                          ),
-                                          const Divider(),
-                                          ListTile(
-                                            leading: Icon(Icons.cloud,
-                                                color: Colors.orange),
-                                            title: Text('Excel com URLs'),
-                                            subtitle: Text(
-                                                'Fotos como links do Firebase\n(backend - PythonAnywhere)'),
-                                            onTap: () => Navigator.pop(
-                                                context, 'backend'),
-                                          ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: Text('Cancelar'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (choice == null) return;
 
                                   // Mostrar loading
                                   showDialog(
@@ -772,21 +924,13 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                   );
 
                                   try {
-                                    String filePath;
-
-                                    if (choice == 'syncfusion') {
-                                      // ✅ NOVO: Syncfusion local com fotos embutidas
-                                      filePath = await ExcelSyncfusionService
-                                          .generateExcelWithEmbeddedImages(w);
-                                    } else {
-                                      // Backend atual
-                                      filePath =
-                                          await ExcelApiService.generateExcel(
-                                              w);
-                                    }
+                                    // ✅ SÓ SYNCFUSION (fotos embutidas)
+                                    final filePath =
+                                        await ExcelSyncfusionService
+                                            .generateExcelWithEmbeddedImages(w);
 
                                     if (!mounted) return;
-                                    Navigator.pop(context);
+                                    Navigator.pop(context); // Fecha loading
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -796,7 +940,6 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                         action: SnackBarAction(
                                           label: 'Abrir',
                                           onPressed: () async {
-                                            // Abrir arquivo
                                             try {
                                               await Process.run(
                                                   'explorer', [filePath]);
@@ -809,11 +952,12 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                     );
                                   } catch (e) {
                                     if (!mounted) return;
-                                    Navigator.pop(context);
+                                    Navigator.pop(context); // Fecha loading
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Erro: $e'),
+                                        content:
+                                            Text('❌ Erro ao gerar Excel: $e'),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
@@ -821,6 +965,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                 },
                                 tooltip: 'Gerar Excel',
                               ),
+                            // DELETE BUTTON
                             IconButton(
                               icon: const Icon(Icons.delete),
                               onPressed: () async {

@@ -15,8 +15,8 @@ class FirebaseStorageService {
       final cred = await FirebaseAuth.instance.signInAnonymously();
       user = cred.user!;
     }
-    print('✅ Storage User: ${user!.uid}');
-    return user!;
+    print('✅ Storage User: ${user.uid}');
+    return user;
   }
 
   /// Faz upload de uma foto para Firebase Storage e retorna a URL de download

@@ -51,6 +51,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.13.1
+  msix: ^3.16.7  # ✅ ADICIONA PARA CRIAR INSTALADOR
 
 flutter_launcher_icons:
   android: "ic_launcher"
@@ -71,3 +72,20 @@ flutter:
         - asset: assets/fonts/Roboto-Regular.ttf
         - asset: assets/fonts/Roboto-Bold.ttf
           weight: 700
+
+# ========== CONFIGURAÇÃO MSIX (INSTALADOR WINDOWS) ==========
+msix_config:
+  display_name: 2WS Walkdown
+  publisher_display_name: Eduardo Jorge Lamy Roque
+  identity_name: com.twowindservice.walkdown
+  msix_version: 1.0.0.0
+  logo_path: assets/logo_turbina2.png
+  description: Aplicação de inspeção de turbinas eólicas desenvolvida por Eduardo Jorge Lamy Roque para 2WindService
+  
+  # Informações adicionais
+  publisher: CN=Eduardo Jorge Lamy Roque
+  capabilities: internetClient, location
+  
+  # Certificado (opcional - só se tiveres):
+  # certificate_path: certificado.pfx
+  # certificate_password: senha

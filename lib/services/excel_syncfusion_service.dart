@@ -7,8 +7,6 @@ import 'package:walkdown_app/database.dart';
 import 'package:walkdown_app/services/firebase_storage_service.dart';
 import 'package:intl/intl.dart';
 import 'package:translator/translator.dart';
-
-// ✅ IMPORT DO DICIONÁRIO OFFLINE (ajusta se o path for diferente)
 import 'package:walkdown_app/translations.dart';
 
 class ExcelSyncfusionService {
@@ -56,12 +54,51 @@ class ExcelSyncfusionService {
     final xlsio.Workbook workbook = xlsio.Workbook();
     final xlsio.Worksheet sheet = workbook.worksheets[0];
     sheet.name = 'T';
-
-    // ✅ ORIENTAÇÃO VERTICAL (PORTRAIT)
+    sheet.showGridlines = false; // ✅ Desliga gridlines
     sheet.pageSetup.orientation = xlsio.ExcelPageOrientation.portrait;
 
-    // ✅ LARGURAS EXATAS
-    sheet.getRangeByIndex(1, 1).columnWidth = 3.60;
+    // ✅ STYLES SEM BORDAS (bordas aplicadas depois)
+    final styleTopGrey = workbook.styles.add('TopGrey');
+    styleTopGrey.backColor = '#E6E6E6';
+    styleTopGrey.fontColor = '#000000';
+    styleTopGrey.bold = true;
+    styleTopGrey.hAlign = xlsio.HAlignType.center;
+    styleTopGrey.vAlign = xlsio.VAlignType.center;
+
+    final styleInfoGrey = workbook.styles.add('InfoGrey');
+    styleInfoGrey.backColor = '#E6E6E6';
+    styleInfoGrey.fontColor = '#000000';
+    styleInfoGrey.bold = true;
+    styleInfoGrey.hAlign = xlsio.HAlignType.left;
+    styleInfoGrey.vAlign = xlsio.VAlignType.center;
+
+    final styleValueGrey = workbook.styles.add('ValueGrey');
+    styleValueGrey.backColor = '#E6E6E6';
+    styleValueGrey.fontColor = '#000000';
+    styleValueGrey.bold = false;
+    styleValueGrey.hAlign = xlsio.HAlignType.center;
+    styleValueGrey.vAlign = xlsio.VAlignType.center;
+
+    final headerStyle = workbook.styles.add('TableHeader');
+    headerStyle.backColor = '#76E3FF';
+    headerStyle.fontColor = '#000000';
+    headerStyle.bold = true;
+    headerStyle.hAlign = xlsio.HAlignType.center;
+    headerStyle.vAlign = xlsio.VAlignType.center;
+
+    final styleCell = workbook.styles.add('Cell');
+    styleCell.fontColor = '#000000';
+    styleCell.hAlign = xlsio.HAlignType.center;
+    styleCell.vAlign = xlsio.VAlignType.center;
+    styleCell.wrapText = true;
+
+    final separatorWhiteStyle = workbook.styles.add('SeparatorWhite');
+    separatorWhiteStyle.backColor = '#FFFFFF';
+    separatorWhiteStyle.fontColor = '#FFFFFF';
+    separatorWhiteStyle.wrapText = false;
+
+    // Larguras das colunas
+    sheet.getRangeByIndex(1, 1).columnWidth = 3.64;
     sheet.getRangeByIndex(1, 2).columnWidth = 5.50;
     sheet.getRangeByIndex(1, 3).columnWidth = 2.70;
     sheet.getRangeByIndex(1, 4).columnWidth = 8.0;
@@ -74,27 +111,18 @@ class ExcelSyncfusionService {
     sheet.getRangeByIndex(1, 11).columnWidth = 2.55;
     sheet.getRangeByIndex(1, 12).columnWidth = 19.50;
 
-    // ✅ LINHA 1
+    // LINHA 1
     sheet.getRangeByIndex(1, 1).rowHeight = 20.5;
 
-    _mergeCellsWithBorders(sheet, 1, 1, 1, 2);
-    _setCell(sheet, 1, 1, 'Project:',
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
+    _mergeAndSet(sheet, 1, 1, 1, 2, 'Project:', styleTopGrey);
+    _mergeAndSet(
+        sheet, 1, 3, 1, 4, walkdown.projectInfo.projectNumber, styleTopGrey);
+    _mergeAndSet(sheet, 1, 5, 1, 6, 'Site:', styleTopGrey);
+    _mergeAndSet(
+        sheet, 1, 7, 1, 9, walkdown.projectInfo.projectName, styleTopGrey);
 
-    _mergeCellsWithBorders(sheet, 1, 3, 1, 4);
-    _setCell(sheet, 1, 3, walkdown.projectInfo.projectNumber,
-        vAlign: xlsio.VAlignType.center);
-
-    _mergeCellsWithBorders(sheet, 1, 5, 1, 6);
-    _setCell(sheet, 1, 5, 'Site: ',
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
-
-    _mergeCellsWithBorders(sheet, 1, 7, 1, 9);
-    _setCell(sheet, 1, 7, walkdown.projectInfo.projectName,
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
-
-    // LOGO
-    _mergeCellsWithBorders(sheet, 1, 10, 3, 12);
+    // Logo
+    _mergeWithStyle(sheet, 1, 10, 3, 12, styleTopGrey);
     try {
       final logoData = await rootBundle.load('assets/logo_2ws.png');
       final logoBytes = logoData.buffer.asUint8List();
@@ -105,101 +133,91 @@ class ExcelSyncfusionService {
       print('⚠️ Logo: $e');
     }
 
-    // ✅ LINHA 2
+    // LINHA 2 (separator)
     sheet.getRangeByIndex(2, 1).rowHeight = 5.15;
-    _mergeCellsWithBorders(sheet, 2, 1, 2, 9);
+    _mergeWithStyle(sheet, 2, 1, 2, 9, styleTopGrey);
 
-    // ✅ LINHA 3
+    // LINHA 3
     sheet.getRangeByIndex(3, 1).rowHeight = 21.0;
+    _setCellWithStyle(sheet, 3, 1, 'Road', styleInfoGrey);
+    _mergeAndSet(sheet, 3, 2, 3, 3, walkdown.projectInfo.road, styleValueGrey);
+    _setCellWithStyle(sheet, 3, 4, 'Tower:', styleInfoGrey);
+    _setCellWithStyle(
+        sheet, 3, 5, walkdown.projectInfo.towerNumber, styleValueGrey);
+    _setCellWithStyle(sheet, 3, 6, 'S.SUP:', styleInfoGrey);
+    _setCellWithStyle(
+        sheet, 3, 7, walkdown.projectInfo.supervisorName, styleValueGrey);
+    _setCellWithStyle(sheet, 3, 8, 'Date:', styleInfoGrey);
+    _setCellWithStyle(
+        sheet,
+        3,
+        9,
+        DateFormat('dd.MM.yy').format(walkdown.projectInfo.date),
+        styleValueGrey);
 
-    _setCell(sheet, 3, 1, 'Road:  ',
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
+    // Caixa grande 1: A1:I1
+    _applyOuterBorder(sheet, 1, 1, 1, 9);
 
-    _mergeCellsWithBorders(sheet, 3, 2, 3, 3);
-    _setCell(sheet, 3, 2, walkdown.projectInfo.road,
-        vAlign: xlsio.VAlignType.center);
+// Caixa grande 2: A3:I3
+    _applyOuterBorder(sheet, 3, 1, 3, 9);
 
-    _setCell(sheet, 3, 4, 'Tower:  ',
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
+// Divisórias internas verticais (na linha 3):
+// entre C|D  => right border da coluna C (3)
+    sheet.getRangeByIndex(3, 3).cellStyle.borders.right.lineStyle =
+        xlsio.LineStyle.medium;
+    sheet.getRangeByIndex(3, 3).cellStyle.borders.right.color = '#000000';
 
-    _setCell(sheet, 3, 5, walkdown.projectInfo.towerNumber,
-        vAlign: xlsio.VAlignType.center);
+// entre D|E  => right border da coluna D (4)
+    sheet.getRangeByIndex(3, 4).cellStyle.borders.right.lineStyle =
+        xlsio.LineStyle.medium;
+    sheet.getRangeByIndex(3, 4).cellStyle.borders.right.color = '#000000';
 
-    _setCell(sheet, 3, 6, 'S.SUP: ',
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
+// entre E|F  => right border da coluna E (5)
+    sheet.getRangeByIndex(3, 5).cellStyle.borders.right.lineStyle =
+        xlsio.LineStyle.medium;
+    sheet.getRangeByIndex(3, 5).cellStyle.borders.right.color = '#000000';
 
-    _setCell(sheet, 3, 7, walkdown.projectInfo.supervisorName,
-        vAlign: xlsio.VAlignType.center);
+// entre G|H  => right border da coluna G (7)
+    sheet.getRangeByIndex(3, 7).cellStyle.borders.right.lineStyle =
+        xlsio.LineStyle.medium;
+    sheet.getRangeByIndex(3, 7).cellStyle.borders.right.color = '#000000';
 
-    _setCell(sheet, 3, 8, 'Date: ',
-        vAlign: xlsio.VAlignType.center, hAlign: xlsio.HAlignType.center);
-
-    _setCell(
-        sheet, 3, 9, DateFormat('dd.MM.yy').format(walkdown.projectInfo.date),
-        vAlign: xlsio.VAlignType.center);
-
-    // ✅ LINHA 4
+    // LINHA 4 (separator)
     sheet.getRangeByIndex(4, 1).rowHeight = 5.15;
-    _mergeCellsWithBorders(sheet, 4, 1, 4, 12);
+    _mergeWithStyle(sheet, 4, 1, 4, 12, styleTopGrey);
 
-    // ✅ LINHA 5 - HEADER
+    // LINHA 5 - HEADER
     sheet.getRangeByIndex(5, 1).rowHeight = 15.0;
-
-    final headerStyle = workbook.styles.add('TableHeader');
-    headerStyle.backColor = '#76E3FF';
-    headerStyle.fontColor = '#000000';
-    headerStyle.bold = true;
-    headerStyle.hAlign = xlsio.HAlignType.center;
-    headerStyle.vAlign = xlsio.VAlignType.center;
-    headerStyle.borders.all.lineStyle = xlsio.LineStyle.thick;
-
     _setCellWithStyle(sheet, 5, 1, 'N.', headerStyle);
     _setCellWithStyle(sheet, 5, 2, 'Pos:', headerStyle);
-
-    _mergeCellsWithBorders(sheet, 5, 3, 5, 6);
-    _setCellWithStyle(sheet, 5, 3, 'Observation:', headerStyle);
-
+    _mergeAndSet(sheet, 5, 3, 5, 6, 'Observation:', headerStyle);
     _setCellWithStyle(sheet, 5, 7, 'Before:', headerStyle);
-
-    _mergeCellsWithBorders(sheet, 5, 8, 5, 9);
-    _setCellWithStyle(sheet, 5, 8, 'After:', headerStyle);
-
+    _mergeAndSet(sheet, 5, 8, 5, 9, 'After:', headerStyle);
     _setCellWithStyle(sheet, 5, 10, 'Y/N', headerStyle);
+    _mergeAndSet(sheet, 5, 11, 5, 12, 'Observation:', headerStyle);
 
-    _mergeCellsWithBorders(sheet, 5, 11, 5, 12);
-    _setCellWithStyle(sheet, 5, 11, 'Observation:', headerStyle);
-
-    // ✅ LINHA 6
+    // LINHA 6 (separator)
     sheet.getRangeByIndex(6, 1).rowHeight = 5.15;
-    _mergeCellsWithBorders(sheet, 6, 1, 6, 12);
+    _mergeWithStyle(sheet, 6, 1, 6, 12, styleTopGrey);
 
-    // ✅ OCORRÊNCIAS
+    // OCORRÊNCIAS
     int currentRow = 7;
 
     for (int i = 0; i < occurrencesWithLocalPhotos.length; i++) {
       final occ = occurrencesWithLocalPhotos[i];
-
       sheet.getRangeByIndex(currentRow, 1).rowHeight = 70.0;
 
-      // N.
-      _setCell(sheet, currentRow, 1, (i + 1).toString(),
-          hAlign: xlsio.HAlignType.center, vAlign: xlsio.VAlignType.center);
+      _setCellWithStyle(sheet, currentRow, 1, (i + 1).toString(), styleCell);
 
-      // Pos: (traduz)
       final positionPt = _extractPosition(occ.location ?? '');
       final positionEn = await _translatePtToEnHybrid(positionPt);
-      _setCell(sheet, currentRow, 2, positionEn,
-          hAlign: xlsio.HAlignType.center, vAlign: xlsio.VAlignType.center);
+      _setCellWithStyle(sheet, currentRow, 2, positionEn, styleCell);
 
-      // Observation: (traduz)
-      _mergeCellsWithBorders(sheet, currentRow, 3, currentRow, 6);
       final descriptionEn = await _translatePtToEnHybrid(occ.description ?? '');
-      _setCell(sheet, currentRow, 3, descriptionEn,
-          hAlign: xlsio.HAlignType.center,
-          vAlign: xlsio.VAlignType.center,
-          wrapText: true);
+      _mergeAndSet(
+          sheet, currentRow, 3, currentRow, 6, descriptionEn, styleCell);
 
-      // FOTO Before (G)
+      _applyCellStyle(sheet, currentRow, 7, styleCell);
       if (occ.photos.isNotEmpty && occ.photos[0].isNotEmpty) {
         try {
           final photoFile = File(occ.photos[0]);
@@ -208,44 +226,71 @@ class ExcelSyncfusionService {
             final xlsio.Picture picture =
                 sheet.pictures.addStream(currentRow, 7, bytes);
             picture.height = 94;
-            picture.width = 112;
+            picture.width = 111;
           }
         } catch (e) {
           print('   ❌ Foto #${i + 1}: $e');
         }
       }
-      _addBorder(sheet.getRangeByIndex(currentRow, 7));
 
-      // After:
-      _mergeCellsWithBorders(sheet, currentRow, 8, currentRow, 9);
-
-      // Y/N:
-      _setCell(sheet, currentRow, 10, '',
-          hAlign: xlsio.HAlignType.center, vAlign: xlsio.VAlignType.center);
-
-      // Observation (final):
-      _mergeCellsWithBorders(sheet, currentRow, 11, currentRow, 12);
+      _mergeWithStyle(sheet, currentRow, 8, currentRow, 9, styleCell);
+      _setCellWithStyle(sheet, currentRow, 10, '', styleCell);
+      _mergeWithStyle(sheet, currentRow, 11, currentRow, 12, styleCell);
 
       currentRow++;
     }
 
-    // ✅ LINHAS VAZIAS
+    // Linhas vazias
     while (currentRow <= 26) {
       sheet.getRangeByIndex(currentRow, 1).rowHeight = 90.0;
 
-      _addBorder(sheet.getRangeByIndex(currentRow, 1));
-      _addBorder(sheet.getRangeByIndex(currentRow, 2));
-
-      _mergeCellsWithBorders(sheet, currentRow, 3, currentRow, 6);
-      _addBorder(sheet.getRangeByIndex(currentRow, 7));
-
-      _mergeCellsWithBorders(sheet, currentRow, 8, currentRow, 9);
-      _addBorder(sheet.getRangeByIndex(currentRow, 10));
-
-      _mergeCellsWithBorders(sheet, currentRow, 11, currentRow, 12);
+      _applyCellStyle(sheet, currentRow, 1, styleCell);
+      _applyCellStyle(sheet, currentRow, 2, styleCell);
+      _mergeWithStyle(sheet, currentRow, 3, currentRow, 6, styleCell);
+      _applyCellStyle(sheet, currentRow, 7, styleCell);
+      _mergeWithStyle(sheet, currentRow, 8, currentRow, 9, styleCell);
+      _applyCellStyle(sheet, currentRow, 10, styleCell);
+      _mergeWithStyle(sheet, currentRow, 11, currentRow, 12, styleCell);
 
       currentRow++;
     }
+
+// ✅ APLICA BORDAS DEPOIS DE TUDO
+
+// Header (rows 1..3): NÃO usar borders.all por célula
+// porque já estás a desenhar as caixas A1:I1 e A3:I3 com _applyOuterBorder.
+// Além disso, vais limpar a row 2 no fim com _applyWhiteGapRow.
+// _applyBordersToRange(sheet, 1, 1, 3, 12); // Header completo
+
+// Logo block (J1:L3) com caixa própria (opcional mas recomendado)
+    _applyOuterBorder(sheet, 1, 10, 3, 12);
+
+// Separators 4 e 6: podes deixar, porque depois limpas com _applyWhiteGapRow
+    _applyBordersToRange(sheet, 4, 1, 4, 12); // Separator
+    _applyBordersToRange(sheet, 6, 1, 6, 12); // Separator
+
+// Table header row 5: NÃO usar borders.all (tem merges). Faz por blocos:
+    _applyOuterBorder(sheet, 5, 1, 5, 1); // N.
+    _applyOuterBorder(sheet, 5, 2, 5, 2); // Pos
+    _applyOuterBorder(sheet, 5, 3, 5, 6); // Observation (merged)
+    _applyOuterBorder(sheet, 5, 7, 5, 7); // Before
+    _applyOuterBorder(sheet, 5, 8, 5, 9); // After (merged)
+    _applyOuterBorder(sheet, 5, 10, 5, 10); // Y/N
+    _applyOuterBorder(sheet, 5, 11, 5, 12); // Observation (merged)
+
+    // Linhas de dados
+    for (int row = 7; row <= 26; row++) {
+      for (int col = 1; col <= 12; col++) {
+        _applySingleBorder(sheet, row, col);
+      }
+    }
+    // Gaps limpos (branco puro, sem linhas) — aplicar no FIM
+// Row 2: só A..I (porque J..L é o logo)
+    _applyWhiteGapRow(sheet, 2, 1, 9, 5.15, separatorWhiteStyle);
+
+// Row 4 e 6: A..L
+    _applyWhiteGapRow(sheet, 4, 1, 12, 5.15, separatorWhiteStyle);
+    _applyWhiteGapRow(sheet, 6, 1, 12, 5.15, separatorWhiteStyle);
 
     final List<int> bytes = workbook.saveAsStream();
     workbook.dispose();
@@ -254,22 +299,17 @@ class ExcelSyncfusionService {
     final fileName =
         'Walkdown_${walkdown.projectInfo.towerNumber}_${DateFormat('ddMMyy_HHmmss').format(DateTime.now())}.xlsx';
     final filePath = '${directory.path}/$fileName';
-
     await File(filePath).writeAsBytes(bytes);
 
     print('✅ Excel: $filePath');
     return filePath;
   }
 
-  // =====================
-  // TRADUÇÃO HÍBRIDA
-  // =====================
-
+  // Helpers
   static Future<String> _translatePtToEnHybrid(String textPt) async {
     final cleaned = textPt.trim();
     if (cleaned.isEmpty) return textPt;
 
-    // 1) tenta online
     try {
       final translation =
           await _onlineTranslator.translate(cleaned, from: 'pt', to: 'en');
@@ -277,7 +317,6 @@ class ExcelSyncfusionService {
       if (out.isNotEmpty) return out;
       return cleaned;
     } catch (_) {
-      // 2) fallback offline: dicionário interno (translations.dart)
       try {
         return Translator.translate(cleaned);
       } catch (_) {
@@ -286,39 +325,44 @@ class ExcelSyncfusionService {
     }
   }
 
-  static void _mergeCellsWithBorders(
+  static String _extractPosition(String location) {
+    if (location.contains(' – ')) return location.split(' – ')[0].trim();
+    if (location.contains(' - ')) return location.split(' - ')[0].trim();
+    if (location.contains(' → ')) return location.split(' → ')[0].trim();
+    return location;
+  }
+
+  // ✅ Merge e aplica estilo SEM bordas
+  static void _mergeWithStyle(
     xlsio.Worksheet sheet,
     int startRow,
     int startCol,
     int endRow,
     int endCol,
+    xlsio.Style style,
   ) {
-    sheet.getRangeByIndex(startRow, startCol, endRow, endCol).merge();
-
-    for (int row = startRow; row <= endRow; row++) {
-      for (int col = startCol; col <= endCol; col++) {
-        _addBorder(sheet.getRangeByIndex(row, col));
-      }
-    }
+    final range = sheet.getRangeByIndex(startRow, startCol, endRow, endCol);
+    range.merge();
+    range.cellStyle.backColor = style.backColor;
+    range.cellStyle.fontColor = style.fontColor;
+    range.cellStyle.bold = style.bold;
+    range.cellStyle.hAlign = style.hAlign;
+    range.cellStyle.vAlign = style.vAlign;
+    range.cellStyle.wrapText = style.wrapText;
   }
 
-  static void _setCell(
+  // ✅ Merge, set texto e aplica estilo
+  static void _mergeAndSet(
     xlsio.Worksheet sheet,
-    int row,
-    int col,
-    String text, {
-    xlsio.HAlignType? hAlign,
-    xlsio.VAlignType? vAlign,
-    bool wrapText = false,
-  }) {
-    final cell = sheet.getRangeByIndex(row, col);
-    cell.setText(text);
-
-    if (hAlign != null) cell.cellStyle.hAlign = hAlign;
-    if (vAlign != null) cell.cellStyle.vAlign = vAlign;
-    if (wrapText) cell.cellStyle.wrapText = true;
-
-    _addBorder(cell);
+    int startRow,
+    int startCol,
+    int endRow,
+    int endCol,
+    String text,
+    xlsio.Style style,
+  ) {
+    _mergeWithStyle(sheet, startRow, startCol, endRow, endCol, style);
+    sheet.getRangeByIndex(startRow, startCol).setText(text);
   }
 
   static void _setCellWithStyle(
@@ -333,14 +377,105 @@ class ExcelSyncfusionService {
     cell.cellStyle = style;
   }
 
-  static void _addBorder(xlsio.Range cell) {
-    cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thick;
+  static void _applyCellStyle(
+    xlsio.Worksheet sheet,
+    int row,
+    int col,
+    xlsio.Style style,
+  ) {
+    final cell = sheet.getRangeByIndex(row, col);
+    cell.cellStyle.backColor = style.backColor;
+    cell.cellStyle.fontColor = style.fontColor;
+    cell.cellStyle.hAlign = style.hAlign;
+    cell.cellStyle.vAlign = style.vAlign;
+    cell.cellStyle.wrapText = style.wrapText;
   }
 
-  static String _extractPosition(String location) {
-    if (location.contains(' – ')) return location.split(' – ')[0].trim();
-    if (location.contains(' - ')) return location.split(' - ')[0].trim();
-    if (location.contains(' → ')) return location.split(' → ')[0].trim();
-    return location;
+  static void _applyOuterBorder(
+    xlsio.Worksheet sheet,
+    int startRow,
+    int startCol,
+    int endRow,
+    int endCol,
+  ) {
+    // top
+    for (int c = startCol; c <= endCol; c++) {
+      final cell = sheet.getRangeByIndex(startRow, c);
+      cell.cellStyle.borders.top.lineStyle = xlsio.LineStyle.medium;
+      cell.cellStyle.borders.top.color = '#000000';
+    }
+    // bottom
+    for (int c = startCol; c <= endCol; c++) {
+      final cell = sheet.getRangeByIndex(endRow, c);
+      cell.cellStyle.borders.bottom.lineStyle = xlsio.LineStyle.medium;
+      cell.cellStyle.borders.bottom.color = '#000000';
+    }
+    // left
+    for (int r = startRow; r <= endRow; r++) {
+      final cell = sheet.getRangeByIndex(r, startCol);
+      cell.cellStyle.borders.left.lineStyle = xlsio.LineStyle.medium;
+      cell.cellStyle.borders.left.color = '#000000';
+    }
+    // right
+    for (int r = startRow; r <= endRow; r++) {
+      final cell = sheet.getRangeByIndex(r, endCol);
+      cell.cellStyle.borders.right.lineStyle = xlsio.LineStyle.medium;
+      cell.cellStyle.borders.right.color = '#000000';
+    }
+  }
+
+  // ✅ Aplica bordas em TODAS as células do range
+  static void _applyBordersToRange(
+    xlsio.Worksheet sheet,
+    int startRow,
+    int startCol,
+    int endRow,
+    int endCol,
+  ) {
+    for (int row = startRow; row <= endRow; row++) {
+      for (int col = startCol; col <= endCol; col++) {
+        _applySingleBorder(sheet, row, col);
+      }
+    }
+  }
+
+  // ✅ Aplica borda grossa em célula única
+  static void _applySingleBorder(xlsio.Worksheet sheet, int row, int col) {
+    final cell = sheet.getRangeByIndex(row, col);
+    cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.medium;
+    cell.cellStyle.borders.all.color = '#000000';
+  }
+
+  static void _applyWhiteGapRow(
+    xlsio.Worksheet sheet,
+    int gapRow,
+    int startCol,
+    int endCol,
+    double rowHeight,
+    xlsio.Style whiteStyle,
+  ) {
+    sheet.getRangeByIndex(gapRow, 1).rowHeight = rowHeight;
+
+    for (int c = startCol; c <= endCol; c++) {
+      // Linha do gap
+      final gapCell = sheet.getRangeByIndex(gapRow, c);
+      gapCell.cellStyle = whiteStyle;
+      gapCell.cellStyle.borders.top.lineStyle = xlsio.LineStyle.none;
+      gapCell.cellStyle.borders.bottom.lineStyle = xlsio.LineStyle.none;
+      gapCell.cellStyle.borders.left.lineStyle = xlsio.LineStyle.none;
+      gapCell.cellStyle.borders.right.lineStyle = xlsio.LineStyle.none;
+
+      // Linha de cima: remove o que “entra” no gap
+      final topCell = sheet.getRangeByIndex(gapRow - 1, c);
+      topCell.cellStyle.borders.bottom.lineStyle = xlsio.LineStyle.none;
+      topCell.cellStyle.borders.left.lineStyle = xlsio.LineStyle.none;
+      topCell.cellStyle.borders.right.lineStyle = xlsio.LineStyle.none;
+
+      // Linha de baixo: remove o que “entra” no gap
+      final bottomCell = sheet.getRangeByIndex(gapRow + 1, c);
+      bottomCell.cellStyle.borders.top.lineStyle = xlsio.LineStyle.none;
+      bottomCell.cellStyle.borders.left.lineStyle = xlsio.LineStyle.none;
+      bottomCell.cellStyle.borders.right.lineStyle = xlsio.LineStyle.none;
+    }
   }
 }

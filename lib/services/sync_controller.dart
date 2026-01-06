@@ -4,8 +4,8 @@ import '../database.dart';
 class SyncController extends ChangeNotifier {
   bool _isSyncing = false;
   double _progress = 0.0;
-  int _totalItems = 0;
-  int _syncedItems = 0;
+  final int _totalItems = 0;
+  final int _syncedItems = 0;
   String _status = 'Pronto';
 
   bool get isSyncing => _isSyncing;
@@ -28,7 +28,7 @@ class SyncController extends ChangeNotifier {
       final count = await _db.syncNewWalkdownsToFirestore();
       _progress = 1.0;
       _status = '✅ $count walkdowns enviados';
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 1));
       onComplete();
     } catch (e) {
       _status = '❌ Erro: $e';
@@ -50,7 +50,7 @@ class SyncController extends ChangeNotifier {
       final count = await _db.pullWalkdownsFromFirestore();
       _progress = 1.0;
       _status = '✅ $count walkdowns baixados';
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 1));
       onComplete();
     } catch (e) {
       _status = '❌ Erro: $e';
