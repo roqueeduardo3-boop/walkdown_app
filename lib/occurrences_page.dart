@@ -12,12 +12,14 @@ import 'services/image_compression_service.dart';
 class WalkdownOccurrencesPage extends StatefulWidget {
   final WalkdownData walkdown;
   final String? initialText;
+  final String? checkItemId; // ✅ NOVO
 
   const WalkdownOccurrencesPage({
-    super.key,
+    Key? key,
     required this.walkdown,
     this.initialText,
-  });
+    this.checkItemId,
+  }) : super(key: key);
 
   @override
   State<WalkdownOccurrencesPage> createState() =>
@@ -28,6 +30,7 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
   final formKey = GlobalKey<FormState>();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
+  late final String? checkItemId;
 
   final List<Occurrence> occurrences = [];
   List<String> tempPhotos = [];
@@ -38,6 +41,7 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
   @override
   void initState() {
     super.initState();
+    checkItemId = widget.checkItemId;
     if (widget.initialText != null && widget.initialText!.isNotEmpty) {
       locationController.text = widget.initialText!;
     }
@@ -82,7 +86,8 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         location: locationController.text.trim(),
         description: descriptionController.text.trim(),
         createdAt: _editingOccurrence!.createdAt,
-        photos: List<String>.from(tempPhotos), // ✅ CORRIGIDO!
+        photos: List<String>.from(tempPhotos),
+        checkItemId: _editingOccurrence!.checkItemId, // ✅ MANTER O ORIGINAL
       );
 
       await WalkdownDatabase.instance.updateOccurrence(
@@ -120,14 +125,15 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
         walkdownId: widget.walkdown.id!,
         location: locationController.text.trim(),
         description: descriptionController.text.trim(),
-        createdAt: now,
-        photos: List<String>.from(tempPhotos),
+        createdAt: DateTime.now(),
+        photos: tempPhotos,
+        checkItemId: widget.checkItemId, // ✅ LIGA AO ITEM
       );
 
-      await WalkdownDatabase.instance.insertOccurrence(
-        occ,
-        widget.walkdown.id!,
-      );
+      print(
+          '🔍 SAVING OCC: checkItemId="${widget.checkItemId}" | desc="${descriptionController.text}"');
+      await WalkdownDatabase.instance
+          .insertOccurrence(occ, widget.walkdown.id!);
 
       print('✅ SAVED occurrence ID: $uniqueId'); // ← ADICIONA1!
 

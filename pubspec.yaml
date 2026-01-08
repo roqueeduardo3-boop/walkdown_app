@@ -51,7 +51,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.13.1
-  msix: ^3.16.7  # ✅ ADICIONA PARA CRIAR INSTALADOR
+  msix: ^3.16.7  # ✅ CRIAR INSTALADOR
 
 flutter_launcher_icons:
   android: "ic_launcher"

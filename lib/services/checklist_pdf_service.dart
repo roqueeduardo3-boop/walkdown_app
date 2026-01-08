@@ -6,8 +6,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:translator/translator.dart';
 
+import '../database.dart';
 import '../models.dart';
 import '../translations.dart';
+import 'package:open_filex/open_filex.dart';
 
 class ChecklistPdfService {
   static pw.Font? _regularFont;
@@ -31,67 +33,52 @@ class ChecklistPdfService {
     }
   }
 
+  static Future<List<Occurrence>> _translateOccurrences(
+    List<Occurrence> occurrences,
+  ) async {
+    final translated = <Occurrence>[];
+
+    for (final occ in occurrences) {
+      final translatedLoc = await _translateToEnglish(occ.location);
+      final translatedDesc = await _translateToEnglish(occ.description);
+
+      translated.add(
+        Occurrence(
+          id: occ.id,
+          walkdownId: occ.walkdownId,
+          location: translatedLoc,
+          description: translatedDesc,
+          createdAt: occ.createdAt,
+          photos: occ.photos,
+          checkItemId: occ.checkItemId,
+        ),
+      );
+    }
+
+    return translated;
+  }
+
   static Future<String> _translateToEnglish(String text) async {
     final cleaned = text.trim();
     if (cleaned.isEmpty) return text;
 
     try {
-      final t = await _translator.translate(cleaned, from: 'pt', to: 'en');
-      final out = t.text.trim();
-      if (out.isNotEmpty) return out;
+      final translation =
+          await _translator.translate(cleaned, from: 'pt', to: 'en');
+      final result = translation.text.trim();
+
+      if (result.isNotEmpty) {
+        return result;
+      }
+
       return cleaned;
-    } catch (_) {
-      // fallback dicionário interno
+    } catch (e) {
       try {
         return Translator.translate(cleaned);
-      } catch (_) {
+      } catch (e2) {
         return cleaned;
       }
     }
-  }
-
-  // Extrai "secção" do location: "HUB – ..." => "HUB"
-  static String _extractSectionKey(String location) {
-    final loc = location.trim();
-    if (loc.isEmpty) return '';
-
-    if (loc.contains(' – ')) return loc.split(' – ')[0].trim();
-    if (loc.contains(' - ')) return loc.split(' - ')[0].trim();
-    if (loc.contains(' → ')) return loc.split(' → ')[0].trim();
-    return loc;
-  }
-
-  static Future<Map<String, List<Occurrence>>> _groupOccurrencesBySection(
-    List<Occurrence> occurrences,
-  ) async {
-    // Tradução de occurrence (location/description) para EN (como fazes no PdfGenerator)
-    final translated = <Occurrence>[];
-    for (final o in occurrences) {
-      translated.add(
-        Occurrence(
-          id: o.id,
-          walkdownId: o.walkdownId,
-          location: await _translateToEnglish(o.location),
-          description: await _translateToEnglish(o.description),
-          createdAt: o.createdAt,
-          photos: o.photos,
-        ),
-      );
-    }
-
-    // Agrupar por secção (HUB/NACELE/etc.)
-    final map = <String, List<Occurrence>>{};
-    for (final o in translated) {
-      final key = _extractSectionKey(o.location).toUpperCase();
-      map.putIfAbsent(key, () => []).add(o);
-    }
-
-    // Ordenar por data
-    for (final e in map.entries) {
-      e.value.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    }
-
-    return map;
   }
 
   static Future<File> generateChecklistPdf({
@@ -100,25 +87,21 @@ class ChecklistPdfService {
   }) async {
     await _loadFonts();
 
-    // Logo
     pw.ImageProvider? logoImage;
     try {
       final logoData = await rootBundle.load('assets/logo_2ws.png');
       logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
     } catch (_) {}
 
-    final occBySection = await _groupOccurrencesBySection(occurrences);
     final sections = buildChecklistForWalkdown(walkdown);
 
-    // Traduz header fields (se quiseres tudo 100% EN, traduz labels fixas)
-    final projectLabel = 'Project:';
-    final siteLabel = 'Site:';
-    final roadLabel = 'Road:';
-    final towerLabel = 'Tower:';
-    final supLabel = 'S.SUP:';
-    final dateLabel = 'Date:';
-
     final pdf = pw.Document();
+
+    final checklistTable = await _buildChecklistTable(
+      walkdown: walkdown,
+      sections: sections,
+      occurrences: occurrences,
+    );
 
     pdf.addPage(
       pw.MultiPage(
@@ -129,24 +112,19 @@ class ChecklistPdfService {
           _buildHeader(
             walkdown: walkdown,
             logo: logoImage,
-            projectLabel: projectLabel,
-            siteLabel: siteLabel,
-            roadLabel: roadLabel,
-            towerLabel: towerLabel,
-            supLabel: supLabel,
-            dateLabel: dateLabel,
+            projectLabel: 'Project:',
+            siteLabel: 'Site:',
+            roadLabel: 'Road:',
+            towerLabel: 'Tower:',
+            supLabel: 'S.SUP:',
+            dateLabel: 'Date:',
           ),
           pw.SizedBox(height: 10),
-          _buildChecklistTable(
-            walkdown: walkdown,
-            sections: sections,
-            occBySection: occBySection,
-          ),
+          checklistTable,
         ],
       ),
     );
 
-    // Guardar (tal como fazes no PdfGenerator)
     Directory directory;
     if (Platform.isAndroid) {
       directory = Directory('/storage/emulated/0/Download');
@@ -223,8 +201,10 @@ class ChecklistPdfService {
                     ),
                   ),
                   pw.SizedBox(width: 5),
-                  pw.Text(walkdown.projectInfo.road,
-                      style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    walkdown.projectInfo.road,
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
                   pw.SizedBox(width: 10),
                   pw.Text(
                     towerLabel,
@@ -234,8 +214,10 @@ class ChecklistPdfService {
                     ),
                   ),
                   pw.SizedBox(width: 5),
-                  pw.Text(walkdown.projectInfo.towerNumber,
-                      style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text(
+                    walkdown.projectInfo.towerNumber,
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
                 ],
               ),
             ),
@@ -266,17 +248,32 @@ class ChecklistPdfService {
     );
   }
 
-  static pw.Widget _buildChecklistTable({
+  static Future<pw.Widget> _buildChecklistTable({
     required WalkdownData walkdown,
     required List<ChecklistSection> sections,
-    required Map<String, List<Occurrence>> occBySection,
-  }) {
+    required List<Occurrence> occurrences,
+  }) async {
     final rows = <pw.TableRow>[];
 
-    // Header da tabela (estilo “No | Check description | Y/N/NA | Findings”)
+    final answersByItemId =
+        await WalkdownDatabase.instance.getChecklistAnswers(walkdown.id!);
+
+    final translatedOccurrences = await _translateOccurrences(occurrences);
+
+    final occurrencesByItemId = <String, List<Occurrence>>{};
+    final orphanOccurrences = <Occurrence>[];
+
+    for (final occ in translatedOccurrences) {
+      if (occ.checkItemId != null && occ.checkItemId!.isNotEmpty) {
+        occurrencesByItemId.putIfAbsent(occ.checkItemId!, () => []).add(occ);
+      } else {
+        orphanOccurrences.add(occ);
+      }
+    }
+
     rows.add(
       pw.TableRow(
-        decoration: const pw.BoxDecoration(color: PdfColors.grey700),
+        decoration: pw.BoxDecoration(color: PdfColors.grey700),
         children: [
           _th('No'),
           _th('Check description'),
@@ -291,10 +288,9 @@ class ChecklistPdfService {
     for (final sec in sections) {
       final secTitle = (sec.titleEn ?? sec.titlePt).trim();
 
-      // Linha de "secção" (tipo "6 Hub" no template)
       rows.add(
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          decoration: pw.BoxDecoration(color: PdfColors.grey300),
           children: [
             _tc('', bold: true),
             _tc(secTitle, bold: true),
@@ -304,32 +300,90 @@ class ChecklistPdfService {
         ),
       );
 
-      // occurrences desta secção (por key)
-      final secKey = sec.id.toUpperCase();
-      final secOcc = occBySection[secKey] ?? const [];
-
-      // Para já: findings da secção = lista das descriptions (cada uma numa linha)
-      final findingsText = secOcc.isEmpty
-          ? ''
-          : secOcc.map((o) => '- ${o.description}').join('\n');
-
       for (final item in sec.items) {
         final desc = (item.textEn ?? item.textPt).trim();
+        final itemAnswer = answersByItemId[item.id] ?? '';
+        final matchingOccs = occurrencesByItemId[item.id] ?? [];
 
+        if (matchingOccs.isEmpty) {
+          rows.add(
+            pw.TableRow(
+              children: [
+                _tc(globalNo.toString(), centered: true),
+                _tc(desc),
+                _tc(itemAnswer, centered: true),
+                _tc(''),
+              ],
+            ),
+          );
+        } else if (matchingOccs.length == 1) {
+          rows.add(
+            pw.TableRow(
+              children: [
+                _tc(globalNo.toString(), centered: true),
+                _tc(desc),
+                _tc(itemAnswer, centered: true),
+                _tc('• ${matchingOccs[0].description}'),
+              ],
+            ),
+          );
+        } else {
+          for (int i = 0; i < matchingOccs.length; i++) {
+            final occ = matchingOccs[i];
+            if (i == 0) {
+              rows.add(
+                pw.TableRow(
+                  children: [
+                    _tc(globalNo.toString(), centered: true),
+                    _tc(desc),
+                    _tc(itemAnswer, centered: true),
+                    _tc('• ${occ.description}'),
+                  ],
+                ),
+              );
+            } else {
+              rows.add(
+                pw.TableRow(
+                  children: [
+                    _tc('', centered: true),
+                    _tc(''),
+                    _tc('', centered: true),
+                    _tc('• ${occ.description}'),
+                  ],
+                ),
+              );
+            }
+          }
+        }
+
+        globalNo++;
+      }
+    }
+
+    if (orphanOccurrences.isNotEmpty) {
+      rows.add(
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColors.orange100),
+          children: [
+            _tc('', bold: true),
+            _tc('OTHER FINDINGS', bold: true),
+            _tc(''),
+            _tc(''),
+          ],
+        ),
+      );
+
+      for (final occ in orphanOccurrences) {
         rows.add(
           pw.TableRow(
             children: [
-              _tc(globalNo.toString(), centered: true),
-              _tc(desc),
-              _tc('',
-                  centered:
-                      true), // se no futuro guardares Y/N/NA, preenche aqui
-              _tc(findingsText),
+              _tc(''),
+              _tc(occ.location),
+              _tc(''),
+              _tc('• ${occ.description}'),
             ],
           ),
         );
-
-        globalNo++;
       }
     }
 
@@ -361,8 +415,11 @@ class ChecklistPdfService {
     );
   }
 
-  static pw.Widget _tc(String text,
-      {bool centered = false, bool bold = false}) {
+  static pw.Widget _tc(
+    String text, {
+    bool centered = false,
+    bool bold = false,
+  }) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(5),
       alignment: centered ? pw.Alignment.center : pw.Alignment.topLeft,
@@ -380,5 +437,17 @@ class ChecklistPdfService {
     return '${date.day.toString().padLeft(2, '0')}.'
         '${date.month.toString().padLeft(2, '0')}.'
         '${date.year.toString().substring(2)}';
+  }
+
+  static Future<void> previewChecklistPdf({
+    required WalkdownData walkdown,
+    required List<Occurrence> occurrences,
+  }) async {
+    final file = await generateChecklistPdf(
+      walkdown: walkdown,
+      occurrences: occurrences,
+    );
+
+    await OpenFilex.open(file.path);
   }
 }

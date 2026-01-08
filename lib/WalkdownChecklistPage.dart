@@ -112,7 +112,8 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
         MaterialPageRoute(
           builder: (_) => WalkdownOccurrencesPage(
             walkdown: widget.walkdown,
-            initialText: locationText, // ✅ PASSA A LOCALIZAÇÃO
+            initialText: locationText,
+            checkItemId: itemId, // ✅ NOVO - passa o ID do item
           ),
         ),
       );
@@ -294,7 +295,7 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                   width: 38,
                   height: 26,
                   child: ElevatedButton(
-                    onPressed: () => _saveAnswer(item.id, 'NO'),
+                    onPressed: () async => _saveAnswer(item.id, 'NO'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _noColor(item.id),
                       foregroundColor: Colors.white,

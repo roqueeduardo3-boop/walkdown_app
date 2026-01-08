@@ -14,9 +14,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'services/cache_cleanup_service.dart';
 import 'services/excel_syncfusion_service.dart';
 import 'config.dart';
-import 'services/excel_syncfusion_service.dart';
+import 'services/checklist_pdf_service.dart';
+import 'firebase_options.dart';
 
-// ========== SYNCCONTROLLER ==========
 class SyncController extends ChangeNotifier {
   bool _isSyncing = false;
   double _progress = 0.0;
@@ -73,37 +73,35 @@ class SyncController extends ChangeNotifier {
   }
 }
 
-// ========== MAIN ==========
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await Firebase.initializeApp(
-      options: firebaseOptions,
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('✅ Firebase inicializado');
   } catch (e) {
-    print('❌ Erro Firebase: $e');
+    debugPrint('Firebase init error: $e');
   }
 
   try {
     await FirebaseAuth.instance.authStateChanges().first;
-    print('✅ Firebase Auth inicializado');
   } catch (e) {
-    print('⚠️ Auth init warning: $e');
+    debugPrint('Auth init warning: $e');
   }
-
-  await CacheCleanupService.fullCleanup();
 
   if (Platform.isWindows || Platform.isLinux) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
 
+  await CacheCleanupService.fullCleanup();
+
   FlutterError.onError = (details) {
-    if (details.exception.toString().contains('KeyUpEvent') ||
-        details.exception.toString().contains('KeyDownEvent') ||
-        details.exception.toString().contains('parse JSON message')) {
+    final msg = details.exception.toString();
+    if (msg.contains('KeyUpEvent') ||
+        msg.contains('KeyDownEvent') ||
+        msg.contains('parse JSON message')) {
       return;
     }
     FlutterError.dumpErrorToConsole(details);
@@ -112,7 +110,6 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-// ========== APP ==========
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -120,7 +117,7 @@ class MyApp extends StatelessWidget {
     try {
       await WalkdownDatabase.instance.database;
     } catch (e) {
-      print('Erro ao inicializar DB: $e');
+      debugPrint('Database init error: $e');
     }
   }
 
@@ -185,7 +182,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ========== ROOT PAGE (DETECTA LOGIN) ==========
 class RootPage extends StatelessWidget {
   const RootPage({super.key});
 
@@ -203,7 +199,7 @@ class RootPage extends StatelessWidget {
         final user = snapshot.data;
 
         if (user == null) {
-          return const LoginPage(); // ✅ COM BLOQUEIO DEV
+          return const LoginPage();
         }
 
         return const LanguageSelectionPage();
@@ -212,7 +208,6 @@ class RootPage extends StatelessWidget {
   }
 }
 
-// ========== LOGIN PAGE (COM BLOQUEIO DEV) ==========
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -240,7 +235,6 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // 1. FAZER LOGIN NO FIREBASE
       final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
@@ -248,10 +242,8 @@ class _LoginPageState extends State<LoginPage> {
 
       final user = credential.user;
 
-      // 2. ✅ VERIFICAR SE É DEV E SE EMAIL É PERMITIDO
       if (kUseDevFirebase) {
         if (!isEmailAllowedInDev(user?.email)) {
-          // ❌ EMAIL NÃO AUTORIZADO NO DEV
           await FirebaseAuth.instance.signOut();
 
           if (!mounted) return;
@@ -262,12 +254,7 @@ class _LoginPageState extends State<LoginPage> {
           });
           return;
         }
-
-        // ✅ EMAIL AUTORIZADO NO DEV
-        print('✅ DEV: Email autorizado - ${user?.email}');
       }
-
-      // 3. LOGIN ACEITE - StreamBuilder detecta automaticamente
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -308,7 +295,6 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // LOGO
                 Image.asset(
                   'assets/1logo_2ws.png',
                   height: 100,
@@ -316,8 +302,6 @@ class _LoginPageState extends State<LoginPage> {
                       const Icon(Icons.wind_power, size: 80),
                 ),
                 const SizedBox(height: 32),
-
-                // TÍTULO
                 Text(
                   'Login',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -325,8 +309,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                 ),
                 const SizedBox(height: 8),
-
-                // INDICADOR DEV/PROD
                 if (kUseDevFirebase)
                   Container(
                     padding:
@@ -352,10 +334,7 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ),
-
                 const SizedBox(height: 32),
-
-                // EMAIL
                 TextField(
                   controller: _emailCtrl,
                   decoration: const InputDecoration(
@@ -368,8 +347,6 @@ class _LoginPageState extends State<LoginPage> {
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
-
-                // PASSWORD
                 TextField(
                   controller: _passCtrl,
                   decoration: const InputDecoration(
@@ -382,8 +359,6 @@ class _LoginPageState extends State<LoginPage> {
                   onSubmitted: (_) => _signIn(),
                 ),
                 const SizedBox(height: 24),
-
-                // ERRO
                 if (_error != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -405,10 +380,7 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ),
-
                 if (_error != null) const SizedBox(height: 16),
-
-                // BOTÃO LOGIN
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -436,8 +408,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                   ),
                 ),
-
-                // INFO DEV
                 if (kUseDevFirebase) ...[
                   const SizedBox(height: 24),
                   Container(
@@ -487,9 +457,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
-// ========== RESTO DO CÓDIGO IGUAL (LanguageSelectionPage, WalkdownHomePage, etc) ==========
-// [O restante do código do teu main.dart atual continua aqui...]
 
 class LanguageSelectionPage extends StatelessWidget {
   const LanguageSelectionPage({super.key});
@@ -541,9 +508,6 @@ class LanguageSelectionPage extends StatelessWidget {
   }
 }
 
-// ✅ TODO O RESTO DO TEU CÓDIGO (WalkdownHomePage, _NewWalkdownDialog, etc)
-// CONTINUA EXATAMENTE IGUAL - NÃO MUDES NADA!
-
 class WalkdownHomePage extends StatefulWidget {
   const WalkdownHomePage({super.key});
 
@@ -581,10 +545,9 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
             ..clear()
             ..addAll(items);
         });
-        print('📋 Loaded ${items.length} walkdowns');
       }
     } catch (e) {
-      print('❌ Erro ao carregar walkdowns: $e');
+      debugPrint('Load walkdowns error: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -638,11 +601,10 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
     setState(() => _isLoading = true);
 
     try {
-      final id = await WalkdownDatabase.instance.insertWalkdown(result);
-      print('✅ Walkdown criado com ID: $id');
+      await WalkdownDatabase.instance.insertWalkdown(result);
       await _loadWalkdownsFromDb();
     } catch (e) {
-      print('❌ Erro ao criar walkdown: $e');
+      debugPrint('Create walkdown error: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -727,7 +689,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                     (route) => false,
                   );
                 } catch (e) {
-                  print('❌ Erro no signOut: $e');
+                  debugPrint('Sign out error: $e');
                 }
               }
             }
@@ -904,7 +866,45 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                               },
                               tooltip: loc.pdfTooltip,
                             ),
-                            // ✅ BOTÃO EXCEL - CÓDIGO LIMPO
+                            IconButton(
+                              icon: const Icon(Icons.checklist,
+                                  color: Colors.green),
+                              tooltip: 'Checklist PDF',
+                              onPressed: () async {
+                                if (w.id == null) return;
+
+                                final occurrences = await WalkdownDatabase
+                                    .instance
+                                    .getOccurrencesForWalkdown(w.id!);
+
+                                if (!mounted) return;
+
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (_) => const Center(
+                                      child: CircularProgressIndicator()),
+                                );
+
+                                try {
+                                  await ChecklistPdfService.previewChecklistPdf(
+                                    walkdown: w,
+                                    occurrences: occurrences,
+                                  );
+
+                                  if (!mounted) return;
+                                  Navigator.pop(context);
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Erro ao abrir Checklist PDF: $e')),
+                                  );
+                                }
+                              },
+                            ),
                             if (Platform.isWindows ||
                                 Platform.isLinux ||
                                 Platform.isMacOS)
@@ -914,7 +914,6 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                 onPressed: () async {
                                   if (w.id == null) return;
 
-                                  // Mostrar loading
                                   showDialog(
                                     context: context,
                                     barrierDismissible: false,
@@ -924,13 +923,12 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                   );
 
                                   try {
-                                    // ✅ SÓ SYNCFUSION (fotos embutidas)
                                     final filePath =
                                         await ExcelSyncfusionService
                                             .generateExcelWithEmbeddedImages(w);
 
                                     if (!mounted) return;
-                                    Navigator.pop(context); // Fecha loading
+                                    Navigator.pop(context);
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -944,7 +942,8 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                               await Process.run(
                                                   'explorer', [filePath]);
                                             } catch (e) {
-                                              print('Erro ao abrir: $e');
+                                              debugPrint(
+                                                  'Open Excel error: $e');
                                             }
                                           },
                                         ),
@@ -952,7 +951,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                     );
                                   } catch (e) {
                                     if (!mounted) return;
-                                    Navigator.pop(context); // Fecha loading
+                                    Navigator.pop(context);
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -965,7 +964,6 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                 },
                                 tooltip: 'Gerar Excel',
                               ),
-                            // DELETE BUTTON
                             IconButton(
                               icon: const Icon(Icons.delete),
                               onPressed: () async {

@@ -31,27 +31,29 @@ class WalkdownDatabase {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'walkdowns.db');
 
-    return openDatabase(path, version: 8, // ✅ INCREMENTA de 7 para 8
-        onCreate: (db, version) async {
-      // Criação INICIAL (instalação limpa)
-      await db.execute('''
-        CREATE TABLE walkdowns (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          project_name TEXT NOT NULL,
-          project_number TEXT NOT NULL,
-          supervisor_name TEXT NOT NULL,
-          road TEXT NOT NULL,
-          tower_number TEXT NOT NULL,
-          date TEXT NOT NULL,
-          tower_type INTEGER NOT NULL,
-          turbine_name TEXT NOT NULL,
-          is_completed INTEGER NOT NULL DEFAULT 0,
-          firestore_id TEXT,
-          needs_sync INTEGER NOT NULL DEFAULT 1  -- ✅ ADICIONA AQUI
-        )
-      ''');
+    return openDatabase(
+      path,
+      version: 9, // ✅ Versão 9
+      onCreate: (db, version) async {
+        // Criação INICIAL (instalação limpa)
+        await db.execute('''
+          CREATE TABLE walkdowns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            project_number TEXT NOT NULL,
+            supervisor_name TEXT NOT NULL,
+            road TEXT NOT NULL,
+            tower_number TEXT NOT NULL,
+            date TEXT NOT NULL,
+            tower_type INTEGER NOT NULL,
+            turbine_name TEXT NOT NULL,
+            is_completed INTEGER NOT NULL DEFAULT 0,
+            firestore_id TEXT,
+            needs_sync INTEGER NOT NULL DEFAULT 1
+          )
+        ''');
 
-      await db.execute('''
+        await db.execute('''
           CREATE TABLE checklist_answers (
             walkdown_id INTEGER NOT NULL,
             item_id TEXT NOT NULL,
@@ -60,17 +62,18 @@ class WalkdownDatabase {
           )
         ''');
 
-      await db.execute('''
+        await db.execute('''
           CREATE TABLE occurrences (
             id TEXT PRIMARY KEY,
             walkdown_id INTEGER NOT NULL,
             location TEXT NOT NULL,
             description TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            check_item_id TEXT
           )
         ''');
 
-      await db.execute('''
+        await db.execute('''
           CREATE TABLE occurrence_photos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             occurrence_id TEXT NOT NULL,
@@ -78,15 +81,19 @@ class WalkdownDatabase {
             FOREIGN KEY (occurrence_id) REFERENCES occurrences(id) ON DELETE CASCADE
           )
         ''');
-    }, onUpgrade: (db, oldVersion, newVersion) async {
-      if (oldVersion < 5) {
-        await db.execute(
-          'ALTER TABLE walkdowns ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0',
-        );
-      }
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        print('🔄 Upgrading DB from v$oldVersion to v$newVersion');
 
-      if (oldVersion < 6) {
-        await db.execute('''
+        if (oldVersion < 5) {
+          await db.execute(
+            'ALTER TABLE walkdowns ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0',
+          );
+          print('✅ v5: is_completed adicionado');
+        }
+
+        if (oldVersion < 6) {
+          await db.execute('''
             CREATE TABLE IF NOT EXISTS occurrence_photos (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               occurrence_id TEXT NOT NULL,
@@ -94,13 +101,13 @@ class WalkdownDatabase {
               FOREIGN KEY (occurrence_id) REFERENCES occurrences(id) ON DELETE CASCADE
             )
           ''');
-      }
+          print('✅ v6: occurrence_photos criada');
+        }
 
-      onUpgrade:
-      (db, oldVersion, newVersion) async {
         if (oldVersion < 7) {
           await db
               .execute('ALTER TABLE walkdowns ADD COLUMN firestore_id TEXT');
+          print('✅ v7: firestore_id adicionado');
         }
 
         if (oldVersion < 8) {
@@ -133,40 +140,22 @@ class WalkdownDatabase {
             print('⚠️ walkdowns já tem needs_sync: $e');
           }
         }
-      };
-    });
-  }
 
-  // ========== OPERAÇÕES COM WALKDOWNS ==========
-  Future<void> markWalkdownCompleted(int walkdownId) async {
-    final db = await database;
-    await db.update(
-      'walkdowns',
-      {'is_completed': 1},
-      where: 'id = ?',
-      whereArgs: [walkdownId],
+        if (oldVersion < 9) {
+          print('🔄 Migration v8→v9: Adicionando check_item_id...');
+
+          try {
+            await db.execute(
+                'ALTER TABLE occurrences ADD COLUMN check_item_id TEXT');
+            print('✅ occurrences.check_item_id adicionado');
+          } catch (e) {
+            print('⚠️ occurrences já tem check_item_id: $e');
+          }
+        }
+      },
     );
   }
-
-  Future<List<WalkdownData>> getAllWalkdowns() async {
-    final db = await database;
-    final maps = await db.query('walkdowns', orderBy: 'date DESC');
-
-    final List<WalkdownData> walkdowns = [];
-
-    for (final map in maps) {
-      final walkdownData = WalkdownData.fromMap(map);
-
-      if (walkdownData.id != null) {
-        final occs = await getOccurrencesForWalkdown(walkdownData.id!);
-        walkdowns.add(walkdownData.copyWith(occurrences: occs));
-      } else {
-        walkdowns.add(walkdownData);
-      }
-    }
-
-    return walkdowns;
-  }
+// ========== OPERAÇÕES COM WALKDOWNS ==========
 
   Future<int> insertWalkdown(WalkdownData data) async {
     final db = await database;
@@ -182,10 +171,30 @@ class WalkdownDatabase {
         'turbine_name': data.turbineName,
         'tower_type': data.towerType.index,
         'is_completed': data.isCompleted ? 1 : 0,
+        'firestore_id': data.firestoreId,
         'needs_sync': 1,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<List<WalkdownData>> getAllWalkdowns() async {
+    final db = await database;
+    final maps = await db.query('walkdowns', orderBy: 'date DESC');
+
+    final List<WalkdownData> walkdowns = [];
+
+    for (final map in maps) {
+      final walkdownData = WalkdownData.fromMap(map);
+      if (walkdownData.id != null) {
+        final occs = await getOccurrencesForWalkdown(walkdownData.id!);
+        walkdowns.add(walkdownData.copyWith(occurrences: occs));
+      } else {
+        walkdowns.add(walkdownData);
+      }
+    }
+
+    return walkdowns;
   }
 
   Future<void> deleteWalkdown(int id) async {
@@ -193,21 +202,16 @@ class WalkdownDatabase {
     await db.delete('walkdowns', where: 'id = ?', whereArgs: [id]);
   }
 
-  /// Limpa TODOS os dados locais (para logout)
   Future<void> clearAllData() async {
     final db = await database;
-
-    print('🗑️ Limpando todas as tabelas...');
 
     await db.delete('occurrence_photos');
     await db.delete('occurrences');
     await db.delete('checklist_answers');
     await db.delete('walkdowns');
-
-    print('✅ Base de dados local limpa');
   }
 
-  // ========== OPERAÇÕES COM OCORRÊNCIAS ==========
+// ========== OPERAÇÕES COM OCORRÊNCIAS ==========
   Future<void> insertOccurrence(Occurrence occ, int walkdownId) async {
     final db = await database;
 
@@ -218,6 +222,7 @@ class WalkdownDatabase {
         'location': occ.location,
         'description': occ.description,
         'created_at': occ.createdAt.toIso8601String(),
+        'check_item_id': occ.checkItemId,
       });
 
       for (final photoPath in occ.photos) {
@@ -227,7 +232,7 @@ class WalkdownDatabase {
         });
       }
     });
-    // ✅ MARCA walkdown como pendente
+
     await db.update(
       'walkdowns',
       {'needs_sync': 1},
@@ -246,6 +251,7 @@ class WalkdownDatabase {
           'location': occ.location,
           'description': occ.description,
           'created_at': occ.createdAt.toIso8601String(),
+          'check_item_id': occ.checkItemId,
         },
         where: 'id = ? AND walkdown_id = ?',
         whereArgs: [occ.id, walkdownId],
@@ -264,7 +270,7 @@ class WalkdownDatabase {
         });
       }
     });
-    // ✅ MARCA walkdown como pendente
+
     await db.update(
       'walkdowns',
       {'needs_sync': 1},
@@ -302,6 +308,7 @@ class WalkdownDatabase {
           description: map['description'] as String,
           createdAt: DateTime.parse(map['created_at'] as String),
           photos: photos,
+          checkItemId: map['check_item_id'] as String?,
         ),
       );
     }
@@ -544,6 +551,7 @@ class WalkdownDatabase {
         'description': occ['description'],
         'created_at': occ['created_at'],
         'photos': photoPaths,
+        'check_item_id': occ['check_item_id'], // ✅ NOVO
       });
     }
 
@@ -632,6 +640,7 @@ class WalkdownDatabase {
           'description': data['description'] as String? ?? '',
           'created_at':
               data['created_at'] as String? ?? DateTime.now().toIso8601String(),
+          'check_item_id': data['check_item_id'] as String?, // ✅ NOVO
         });
 
         // ✅ INSERE FOTOS
@@ -847,10 +856,21 @@ class WalkdownDatabase {
     final db = await database;
 
     final result = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM walkdowns WHERE needs_sync = 1');
+      'SELECT COUNT(*) as count FROM walkdowns WHERE needs_sync = 1',
+    );
 
     final count = Sqflite.firstIntValue(result) ?? 0;
     print('📊 Walkdowns pendentes: $count');
     return count;
+  }
+
+  Future<void> markWalkdownCompleted(int walkdownId) async {
+    final db = await database;
+    await db.update(
+      'walkdowns',
+      {'is_completed': 1, 'needs_sync': 1},
+      where: 'id = ?',
+      whereArgs: [walkdownId],
+    );
   }
 }

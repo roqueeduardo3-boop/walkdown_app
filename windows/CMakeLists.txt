@@ -1,5 +1,5 @@
 # Project-level configuration.
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.15)
 
 # Fix global para Firebase Windows - força desativar warnings como erros em TODOS os plugins
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W0")

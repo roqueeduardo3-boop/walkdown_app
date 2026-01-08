@@ -32,6 +32,7 @@ class Occurrence {
   final String description;
   final DateTime createdAt;
   final List<String> photos;
+  final String? checkItemId; // ✅ NOVO - OPCIONAL
 
   Occurrence({
     required this.id,
@@ -40,6 +41,7 @@ class Occurrence {
     required this.description,
     required this.createdAt,
     required this.photos,
+    this.checkItemId, // ✅ NOVO - OPCIONAL
   });
 }
 
@@ -157,7 +159,7 @@ class WalkdownData {
 class ChecklistItem {
   final String id;
   final String textPt;
-  final String? textEn; // ✅ Nullable para permitir PT sem EN
+  final String? textEn;
 
   ChecklistItem({
     required this.id,
@@ -169,7 +171,7 @@ class ChecklistItem {
 class ChecklistSection {
   final String id;
   final String titlePt;
-  final String? titleEn; // ✅ Nullable
+  final String? titleEn;
 
   final List<ChecklistItem> items;
 
@@ -250,7 +252,7 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
     ),
   );
 
-  // NACELE
+  // NACELE (duplicado no original - vou manter só 1)
   sections.add(
     ChecklistSection(
       id: 'NACELE',
@@ -351,108 +353,6 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
     ),
   );
 
-  // aqui depois vais adicionar Nacele, Yaw, etc.
-
-  // NACELE
-  sections.add(
-    ChecklistSection(
-      id: 'NACELE',
-      titlePt: 'Nacele',
-      titleEn: 'Nacelle',
-      items: [
-        ChecklistItem(
-          id: 'nacelle_ladders_ok',
-          textPt: 'Escadas da nacele fixas e com lixas antiderrapantes',
-          textEn: 'Nacelle ladders fixed and with anti-slip strips',
-        ),
-        ChecklistItem(
-          id: 'nacelle_floor_hatches',
-          textPt: 'Escotilhas do chão metálico com proteção nos cantos',
-          textEn: 'Metal floor hatches with edge protection',
-        ),
-        ChecklistItem(
-          id: 'nacelle_underfloor_clean',
-          textPt: 'Chão por baixo da plataforma metálica limpo e em condições',
-          textEn: 'Area under metal platform clean and in good condition',
-        ),
-        ChecklistItem(
-          id: 'nacelle_cabinets_doors',
-          textPt: 'Portas dos armários em boas condições',
-          textEn: 'Cabinet doors in good condition',
-        ),
-        ChecklistItem(
-          id: 'nacelle_data_cable',
-          textPt: 'Ligação de dados ligada e com folga suficiente',
-          textEn: 'Data connection plugged and with enough slack',
-        ),
-        ChecklistItem(
-          id: 'nacelle_first_aid_3lang',
-          textPt: 'Kit de primeiros socorros presente nas 3 línguas',
-          textEn: 'First aid kit present in 3 languages',
-        ),
-        ChecklistItem(
-          id: 'nacelle_stickers',
-          textPt: 'Autocolantes colocados nos locais corretos',
-          textEn: 'Stickers installed in correct locations',
-        ),
-        ChecklistItem(
-          id: 'nacelle_clean_torque_marks',
-          textPt: 'Limpeza geral e marcas de torque no gerador visíveis',
-          textEn: 'Clean nacelle and visible torque marks on generator',
-        ),
-        ChecklistItem(
-          id: 'nacelle_generator_paint',
-          textPt: 'Pintura do gerador em boas condições',
-          textEn: 'Generator paint in good condition',
-        ),
-        ChecklistItem(
-          id: 'nacelle_drivetrain_paint',
-          textPt: 'Pintura do drive train em boas condições',
-          textEn: 'Drive train paint in good condition',
-        ),
-        ChecklistItem(
-          id: 'nacelle_filters_above_gen',
-          textPt: 'Filtros por cima do gerador em boas condições',
-          textEn: 'Filters above generator in good condition',
-        ),
-        ChecklistItem(
-          id: 'nacelle_coupling_ok',
-          textPt: 'Coupling em boas condições',
-          textEn: 'Coupling in good condition',
-        ),
-        ChecklistItem(
-          id: 'nacelle_work_hatch',
-          textPt: 'Escotilha de trabalho em boas condições e fechada',
-          textEn: 'Work hatch in good condition and closed',
-        ),
-        ChecklistItem(
-          id: 'nacelle_cooler_bolts_anticorrosion',
-          textPt: 'Parafusos do cooler com proteção anticorrosão',
-          textEn: 'Cooler bolts with anti-corrosion protection',
-        ),
-        ChecklistItem(
-          id: 'nacelle_flexible_ducts_fixed',
-          textPt: 'Mangas flexíveis presas corretamente',
-          textEn: 'Flexible ducts properly fixed',
-        ),
-        ChecklistItem(
-          id: 'nacelle_ladders_below_mainshaft',
-          textPt: 'Escadas para debaixo do main shaft colocadas',
-          textEn: 'Ladders below main shaft installed',
-        ),
-        ChecklistItem(
-          id: 'nacelle_below_mainshaft_clean',
-          textPt: 'Zona por baixo do main shaft limpa',
-          textEn: 'Area below main shaft clean',
-        ),
-        ChecklistItem(
-          id: 'nacelle_all_bolts_torque_mark',
-          textPt: 'Todos os parafusos com marca de torque',
-          textEn: 'All relevant bolts with torque mark',
-        ),
-      ],
-    ),
-  );
   // NACELE ROOF
   sections.add(
     ChecklistSection(
@@ -581,6 +481,7 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       ],
     ),
   );
+
   // TOP LIFT PLATFORM
   sections.add(
     ChecklistSection(
@@ -668,7 +569,8 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       ],
     ),
   );
-  // S5 – só existe em torres de 5 secções; por enquanto usa os mesmos pontos
+
+  // S5 – só existe em torres de 5 secções
   if (w.towerType == TowerType.fiveSections) {
     sections.add(
       ChecklistSection(
@@ -741,7 +643,8 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       ),
     );
   }
-  // Secções S4, S3, S2 (iguais no guia)
+
+  // Secções S4, S3, S2
   for (final s in ['S4', 'S3', 'S2']) {
     sections.add(
       ChecklistSection(
@@ -814,6 +717,7 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       ),
     );
   }
+
   // BOTTOM
   sections.add(
     ChecklistSection(
@@ -821,7 +725,6 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       titlePt: 'Bottom',
       titleEn: 'Bottom',
       items: [
-        // Converter
         ChecklistItem(
           id: 'bottom_converter_emergency_label',
           textPt: 'Autocolante do caminho de emergência colocado no converter',
@@ -857,7 +760,6 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
           textPt: 'Anilhas corretas nas duas buzz bars',
           textEn: 'Correct washers on both buzz bars',
         ),
-        // Elevador
         ChecklistItem(
           id: 'bottom_elevator_stickers',
           textPt: 'Autocolantes por detrás do elevador colocados',
@@ -893,6 +795,7 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       ],
     ),
   );
+
   // FUNDAÇÃO
   sections.add(
     ChecklistSection(
@@ -954,6 +857,7 @@ List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {
       ],
     ),
   );
+
   // OUTSIDE
   sections.add(
     ChecklistSection(
