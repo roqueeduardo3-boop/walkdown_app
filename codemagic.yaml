@@ -27,3 +27,6 @@ workflows:
       email:
         recipients:
           - roque.eduardo3@gmail.com
+        notify:
+          success: true
+          failure: true
