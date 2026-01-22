@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path/path.dart' as path;
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 class FirebaseStorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;

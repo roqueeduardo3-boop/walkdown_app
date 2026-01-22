@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import '../services/firebase_storage_service.dart';
 
 class CacheCleanupService {
   static const String _cacheDirName = 'inspection_cache';

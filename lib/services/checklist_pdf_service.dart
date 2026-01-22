@@ -273,7 +273,7 @@ class ChecklistPdfService {
 
     rows.add(
       pw.TableRow(
-        decoration: pw.BoxDecoration(color: PdfColors.grey700),
+        decoration: const pw.BoxDecoration(color: PdfColors.grey700),
         children: [
           _th('No'),
           _th('Check description'),
@@ -290,7 +290,7 @@ class ChecklistPdfService {
 
       rows.add(
         pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey300),
+          decoration: const pw.BoxDecoration(color: PdfColors.grey300),
           children: [
             _tc('', bold: true),
             _tc(secTitle, bold: true),
@@ -363,7 +363,7 @@ class ChecklistPdfService {
     if (orphanOccurrences.isNotEmpty) {
       rows.add(
         pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.orange100),
+          decoration: const pw.BoxDecoration(color: PdfColors.orange100),
           children: [
             _tc('', bold: true),
             _tc('OTHER FINDINGS', bold: true),

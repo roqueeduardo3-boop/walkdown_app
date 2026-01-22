@@ -86,7 +86,8 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(kUseDevFirebase ? '🧪 Walkdown DEV' : '🚀 Walkdown App'),
+        title:
+            const Text(kUseDevFirebase ? '🧪 Walkdown DEV' : '🚀 Walkdown App'),
         centerTitle: true,
       ),
       body: Center(

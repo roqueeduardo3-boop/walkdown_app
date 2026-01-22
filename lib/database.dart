@@ -408,7 +408,7 @@ class WalkdownDatabase {
           ? nowIso
           : walkdown.projectInfo.date.toIso8601String(),
       'updated_at': nowIso,
-      'ownerUid': user?.uid,
+      'ownerUid': user.uid,
     };
 
     await _firestore

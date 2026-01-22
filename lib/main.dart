@@ -5,7 +5,6 @@ import 'WalkdownChecklistPage.dart';
 import 'models.dart';
 import 'database.dart';
 import 'pdf_generator.dart';
-import 'services/excel_api_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:walkdown_app/l10n/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -284,7 +283,8 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(kUseDevFirebase ? '🧪 Walkdown DEV' : '🚀 Walkdown App'),
+        title:
+            const Text(kUseDevFirebase ? '🧪 Walkdown DEV' : '🚀 Walkdown App'),
         centerTitle: true,
       ),
       body: Center(

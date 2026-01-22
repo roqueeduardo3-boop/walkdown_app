@@ -15,11 +15,11 @@ class WalkdownOccurrencesPage extends StatefulWidget {
   final String? checkItemId; // ✅ NOVO
 
   const WalkdownOccurrencesPage({
-    Key? key,
+    super.key,
     required this.walkdown,
     this.initialText,
     this.checkItemId,
-  }) : super(key: key);
+  });
 
   @override
   State<WalkdownOccurrencesPage> createState() =>

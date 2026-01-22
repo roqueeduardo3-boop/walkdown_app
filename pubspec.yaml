@@ -81,11 +81,18 @@ msix_config:
   msix_version: 1.0.0.0
   logo_path: assets/logo_turbina2.png
   description: Aplicação de inspeção de turbinas eólicas desenvolvida por Eduardo Jorge Lamy Roque para 2WindService
+  publisher: CN=2WindService, O=2WindService, C=PT
   
-  # Informações adicionais
-  publisher: CN=Eduardo Jorge Lamy Roque
-  capabilities: internetClient, location
+  # ✅ CAPABILITIES COMPLETAS (permite tudo que a app precisa):
+  capabilities: >
+    internetClient,
+    internetClientServer,
+    privateNetworkClientServer,
+    location,
+    picturesLibrary,
+    videosLibrary,
+    documentsLibrary,
+    removableStorage
   
-  # Certificado (opcional - só se tiveres):
-  # certificate_path: certificado.pfx
-  # certificate_password: senha
+  certificate_path: certificados/2ws_walkdown.pfx
+  certificate_password: 2ws2024
