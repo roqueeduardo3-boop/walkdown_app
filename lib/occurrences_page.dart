@@ -211,15 +211,16 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
+      builder: (dialogContext) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 12),
+            const CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 12),
             Text(
-              'Compress and send...',
-              style: TextStyle(
+              AppLocalizations.of(dialogContext)!
+                  .uploadCompressionProgressLabel,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 14,
               ),
@@ -263,7 +264,7 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Foto comprimida e enviada (${tempPhotos.length}/4)'),
+          content: Text(loc.uploadPhotoSuccessMessage(tempPhotos.length)),
           duration: const Duration(seconds: 2),
           backgroundColor: Colors.green,
         ),
@@ -274,7 +275,7 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro: ${e.toString()}'),
+          content: Text(loc.genericErrorLabel(e.toString())),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -431,18 +432,18 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
                               width: 2,
                             ),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.cloud_upload, size: 24),
-                                SizedBox(height: 6),
+                                const Icon(Icons.cloud_upload, size: 24),
+                                const SizedBox(height: 6),
                                 Text(
-                                  'Arraste imagens aqui',
+                                  loc.dragPhotosHint,
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 13),
+                                  style: const TextStyle(fontSize: 13),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                               ],
                             ),
                           ),
@@ -458,11 +459,14 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
                   width: 110,
                   height: 130,
                   child: tempPhotos.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
-                            'Sem fotos',
+                            loc.noPhotosLabel,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
                           ),
                         )
                       : ListView.builder(
@@ -526,73 +530,6 @@ class _WalkdownOccurrencesPageState extends State<WalkdownOccurrencesPage> {
             _buildActionButtons(loc),
           ],
         ),
-      ),
-    );
-  }
-
-// ========== MINIATURAS DAS FOTOS ==========
-  Widget _buildPhotoThumbnails() {
-    return SizedBox(
-      height: 80,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: tempPhotos.length,
-        itemBuilder: (context, index) {
-          final photoPath = tempPhotos[index];
-          final isUrl = photoPath.startsWith('http');
-
-          return Stack(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: isUrl
-                      ? Image.network(
-                          photoPath,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(child: Icon(Icons.error));
-                          },
-                        )
-                      : Image.file(
-                          File(photoPath),
-                          fit: BoxFit.cover,
-                        ),
-                ),
-              ),
-              Positioned(
-                top: 2,
-                right: 10,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      tempPhotos.removeAt(index);
-                    });
-                  },
-                  child: const CircleAvatar(
-                    radius: 10,
-                    backgroundColor: Colors.red,
-                    child: Icon(Icons.close,
-                        size: 14, color: Color.fromARGB(255, 205, 184, 253)),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
       ),
     );
   }

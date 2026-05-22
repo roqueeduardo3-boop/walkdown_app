@@ -4,6 +4,43 @@ enum AppLanguage { pt, en }
 
 enum TowerType { fourSections, fiveSections }
 
+enum ChecklistTowerRequirement { all, fourSections, fiveSections }
+
+extension ChecklistTowerRequirementX on ChecklistTowerRequirement {
+  String get storageValue {
+    switch (this) {
+      case ChecklistTowerRequirement.all:
+        return 'all';
+      case ChecklistTowerRequirement.fourSections:
+        return 'four';
+      case ChecklistTowerRequirement.fiveSections:
+        return 'five';
+    }
+  }
+
+  bool appliesTo(TowerType towerType) {
+    switch (this) {
+      case ChecklistTowerRequirement.all:
+        return true;
+      case ChecklistTowerRequirement.fourSections:
+        return towerType == TowerType.fourSections;
+      case ChecklistTowerRequirement.fiveSections:
+        return towerType == TowerType.fiveSections;
+    }
+  }
+
+  static ChecklistTowerRequirement fromStorageValue(String? value) {
+    switch (value) {
+      case 'four':
+        return ChecklistTowerRequirement.fourSections;
+      case 'five':
+        return ChecklistTowerRequirement.fiveSections;
+      default:
+        return ChecklistTowerRequirement.all;
+    }
+  }
+}
+
 final ValueNotifier<AppLanguage> appLanguage =
     ValueNotifier<AppLanguage>(AppLanguage.pt);
 
@@ -160,18 +197,36 @@ class ChecklistItem {
   final String id;
   final String textPt;
   final String? textEn;
+  final int sortOrder;
 
   ChecklistItem({
     required this.id,
     required this.textPt,
     this.textEn,
+    this.sortOrder = 0,
   });
+
+  ChecklistItem copyWith({
+    String? id,
+    String? textPt,
+    String? textEn,
+    int? sortOrder,
+  }) {
+    return ChecklistItem(
+      id: id ?? this.id,
+      textPt: textPt ?? this.textPt,
+      textEn: textEn ?? this.textEn,
+      sortOrder: sortOrder ?? this.sortOrder,
+    );
+  }
 }
 
 class ChecklistSection {
   final String id;
   final String titlePt;
   final String? titleEn;
+  final int sortOrder;
+  final ChecklistTowerRequirement towerRequirement;
 
   final List<ChecklistItem> items;
 
@@ -179,8 +234,28 @@ class ChecklistSection {
     required this.id,
     required this.titlePt,
     this.titleEn,
+    this.sortOrder = 0,
+    this.towerRequirement = ChecklistTowerRequirement.all,
     required this.items,
   });
+
+  ChecklistSection copyWith({
+    String? id,
+    String? titlePt,
+    String? titleEn,
+    int? sortOrder,
+    ChecklistTowerRequirement? towerRequirement,
+    List<ChecklistItem>? items,
+  }) {
+    return ChecklistSection(
+      id: id ?? this.id,
+      titlePt: titlePt ?? this.titlePt,
+      titleEn: titleEn ?? this.titleEn,
+      sortOrder: sortOrder ?? this.sortOrder,
+      towerRequirement: towerRequirement ?? this.towerRequirement,
+      items: items ?? this.items,
+    );
+  }
 }
 
 List<ChecklistSection> buildChecklistForWalkdown(WalkdownData w) {

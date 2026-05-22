@@ -24,8 +24,7 @@ class FirebaseStorageService {
     required String occurrenceId,
   }) async {
     try {
-      final user = await FirebaseStorageService.ensureStorageUser() ??
-          (throw Exception('User not authenticated'));
+      final user = await FirebaseStorageService.ensureStorageUser();
 
       final file = File(localPath);
       if (!await file.exists()) {
@@ -105,8 +104,7 @@ class FirebaseStorageService {
   /// Apaga todas as fotos de um walkdown
   static Future<void> deleteWalkdownPhotos(int walkdownId) async {
     try {
-      final user = await FirebaseStorageService.ensureStorageUser() ??
-          (throw Exception('User not authenticated'));
+      final user = await FirebaseStorageService.ensureStorageUser();
 
       final ref = _storage
           .ref()

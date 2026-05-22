@@ -209,11 +209,11 @@ class ExcelSyncfusionService {
 
       _setCellWithStyle(sheet, currentRow, 1, (i + 1).toString(), styleCell);
 
-      final positionPt = _extractPosition(occ.location ?? '');
+      final positionPt = _extractPosition(occ.location);
       final positionEn = await _translatePtToEnHybrid(positionPt);
       _setCellWithStyle(sheet, currentRow, 2, positionEn, styleCell);
 
-      final descriptionEn = await _translatePtToEnHybrid(occ.description ?? '');
+      final descriptionEn = await _translatePtToEnHybrid(occ.description);
       _mergeAndSet(
           sheet, currentRow, 3, currentRow, 6, descriptionEn, styleCell);
 

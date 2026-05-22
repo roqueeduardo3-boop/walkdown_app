@@ -5,6 +5,7 @@ import 'database.dart';
 import 'pdf_generator.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
+import 'package:walkdown_app/l10n/app_localizations.dart';
 
 class WalkdownChecklistPage extends StatefulWidget {
   final WalkdownData walkdown;
@@ -16,9 +17,10 @@ class WalkdownChecklistPage extends StatefulWidget {
 }
 
 class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
-  late final List<ChecklistSection> _sections;
+  List<ChecklistSection> _sections = const [];
   final Map<String, String> _answers = {};
   bool _isOnline = true;
+  bool _isChecklistLoading = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
@@ -26,10 +28,37 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
     super.initState();
     print('🚀 initState EXECUTADO!');
     print('Walkdown ID: ${widget.walkdown.id}');
-    _sections = buildChecklistForWalkdown(widget.walkdown);
-    _loadAnswers();
+    _loadChecklist();
     _checkConnectivity();
     _listenConnectivity();
+  }
+
+  Future<void> _loadChecklist() async {
+    try {
+      final results = await Future.wait<dynamic>([
+        WalkdownDatabase.instance
+            .getChecklistSectionsForWalkdown(widget.walkdown),
+        _loadAnswers(),
+      ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _sections = results[0] as List<ChecklistSection>;
+        _isChecklistLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _isChecklistLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao carregar checklist: $e')),
+      );
+    }
   }
 
   @override
@@ -160,7 +189,7 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
   }
 
   bool _isChecklistComplete() {
-    return _answers.length == totalItems;
+    return totalItems > 0 && doneItems == totalItems;
   }
 
   Future<void> _loadAnswers() async {
@@ -182,17 +211,91 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
     print('🔍 DEBUG _answers.length=${_answers.length}');
   }
 
-  Color _yesColor(String itemId) => _answers[itemId] == 'YES'
-      ? const Color.fromARGB(255, 166, 255, 158)
-      : Colors.grey.shade300;
+  ButtonStyle _answerButtonStyle() {
+    const radius = BorderRadius.all(Radius.circular(7));
 
-  Color _noColor(String itemId) => _answers[itemId] == 'NO'
-      ? const Color.fromARGB(255, 253, 3, 3)
-      : Colors.grey.shade300;
+    return ButtonStyle(
+      foregroundColor: WidgetStateProperty.all(const Color(0xFF232A33)),
+      backgroundColor: WidgetStateProperty.all(Colors.transparent),
+      shadowColor: WidgetStateProperty.all(const Color(0x2A11151B)),
+      elevation: WidgetStateProperty.all(0),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      minimumSize: WidgetStateProperty.all(const Size(38, 26)),
+      padding: WidgetStateProperty.all(EdgeInsets.zero),
+      shape: WidgetStateProperty.all(
+        RoundedRectangleBorder(
+          borderRadius: radius,
+          side: const BorderSide(
+            color: Color(0xCCF5F6F8),
+            width: 0.95,
+          ),
+        ),
+      ),
+      backgroundBuilder: (context, states, child) {
+        final isPressed = states.contains(WidgetState.pressed);
+        final top =
+            isPressed ? const Color(0xFFE2E6EB) : const Color(0xFFF8F9FB);
+        final mid =
+            isPressed ? const Color(0xFFC4CAD3) : const Color(0xFFD8DDE5);
+        final base =
+            isPressed ? const Color(0xFFADB4BF) : const Color(0xFFBFC6CF);
 
-  Color _naColor(String itemId) => _answers[itemId] == 'NA'
-      ? const Color.fromARGB(255, 155, 154, 154)
-      : Colors.grey.shade300;
+        return Ink(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                top,
+                mid,
+                base,
+              ],
+              stops: const [0.0, 0.48, 1.0],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3311171F),
+                offset: Offset(0, 1),
+                blurRadius: 2,
+              ),
+              BoxShadow(
+                color: Color(0x7AFFFFFF),
+                offset: Offset(0, -1),
+                blurRadius: 1,
+              ),
+            ],
+            border: Border.all(
+              color:
+                  isPressed ? const Color(0xAA9EA7B3) : const Color(0xCCF5F6F8),
+              width: 0.95,
+            ),
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
+  Widget _answerContent({
+    required String label,
+    required bool isSelected,
+    required IconData selectedIcon,
+    required Color selectedColor,
+  }) {
+    if (isSelected) {
+      return Icon(selectedIcon, size: 13, color: selectedColor);
+    }
+
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF2C323A),
+      ),
+    );
+  }
 
   Widget _buildSectionTile(ChecklistSection section) {
     final title = appLanguage.value == AppLanguage.pt
@@ -222,19 +325,19 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(color: Colors.white70),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     '$sectionDone/$sectionTotal',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade700,
+                      color: Color(0xFF2E3338),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -244,9 +347,8 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                     child: LinearProgressIndicator(
                       value: sectionProgress,
                       backgroundColor: Colors.grey.shade300,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.blue.shade600,
-                      ),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF8E959C)),
                     ),
                   ),
                 ],
@@ -278,16 +380,13 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                   height: 26,
                   child: ElevatedButton(
                     onPressed: () => _saveAnswer(item.id, 'YES'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _yesColor(item.id),
-                      foregroundColor: Colors.black,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(38, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    style: _answerButtonStyle(),
+                    child: _answerContent(
+                      label: 'YES',
+                      isSelected: _answers[item.id] == 'YES',
+                      selectedIcon: Icons.check,
+                      selectedColor: const Color(0xFF2FA84F),
                     ),
-                    child: const Text('YES',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 2),
@@ -296,16 +395,13 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                   height: 26,
                   child: ElevatedButton(
                     onPressed: () async => _saveAnswer(item.id, 'NO'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _noColor(item.id),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(38, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    style: _answerButtonStyle(),
+                    child: _answerContent(
+                      label: 'NO',
+                      isSelected: _answers[item.id] == 'NO',
+                      selectedIcon: Icons.close,
+                      selectedColor: const Color(0xFFD63A3A),
                     ),
-                    child: const Text('NO',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 2),
@@ -314,16 +410,13 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                   height: 26,
                   child: ElevatedButton(
                     onPressed: () => _saveAnswer(item.id, 'NA'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _naColor(item.id),
-                      foregroundColor: Colors.black,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(38, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    style: _answerButtonStyle(),
+                    child: _answerContent(
+                      label: 'N/A',
+                      isSelected: _answers[item.id] == 'NA',
+                      selectedIcon: Icons.remove,
+                      selectedColor: const Color(0xFF6F7580),
                     ),
-                    child: const Text('N/A',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -335,6 +428,8 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
   }
 
   Future<void> _generatePdf() async {
+    final loc = AppLocalizations.of(context)!;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -355,9 +450,9 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('PDF gerado: ${pdfFile.path}'),
+          content: Text(loc.pdfGenerated(pdfFile.path)),
           action: SnackBarAction(
-            label: 'Abrir',
+            label: loc.pdfOpenLabel,
             onPressed: () async {
               await PdfGenerator.previewPdf(
                 walkdown: widget.walkdown,
@@ -371,18 +466,19 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar PDF: $e')),
+        SnackBar(content: Text('${loc.pdfErrorLabel}: $e')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final progressPercent = calculateProgress();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Checklist'),
+        title: Text(loc.checklistPageTitle),
         actions: [
           // Indicador de conectividade
           Padding(
@@ -404,13 +500,13 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
               );
               _loadAnswers();
             },
-            tooltip: 'Ocorrências',
+            tooltip: loc.checklistOccurrencesTooltip,
           ),
           // Botão de PDF
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             onPressed: _generatePdf,
-            tooltip: 'Gerar PDF',
+            tooltip: loc.pdfTooltip,
           ),
         ],
       ),
@@ -419,14 +515,14 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
           // Barra de progresso global
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.blue.shade50,
+            color: Colors.transparent,
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Progresso',
+                    Text(
+                      loc.checklistProgressLabel,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -434,10 +530,10 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                     ),
                     Text(
                       '$doneItems/$totalItems (${progressPercent.toStringAsFixed(0)}%)',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Colors.blue.shade700,
+                        color: Color(0xFF2E3338),
                       ),
                     ),
                   ],
@@ -447,21 +543,22 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                   value: progressPercent / 100,
                   minHeight: 8,
                   backgroundColor: Colors.grey.shade300,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.blue.shade600,
-                  ),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Color(0xFF8E959C)),
                 ),
               ],
             ),
           ),
           // Lista de seções expansíveis
           Expanded(
-            child: ListView.builder(
-              itemCount: _sections.length,
-              itemBuilder: (context, index) {
-                return _buildSectionTile(_sections[index]);
-              },
-            ),
+            child: _isChecklistLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: _sections.length,
+                    itemBuilder: (context, index) {
+                      return _buildSectionTile(_sections[index]);
+                    },
+                  ),
           ),
         ],
       ),
@@ -472,16 +569,16 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Checklist Completo'),
-                    content: const Text('Marcar este walkdown como completo?'),
+                    title: Text(loc.checklistCompleteTitle),
+                    content: Text(loc.checklistCompleteQuestion),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancelar'),
+                        child: Text(loc.cancelButtonLabel),
                       ),
                       FilledButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Confirmar'),
+                        child: Text(loc.checklistCompleteConfirmLabel),
                       ),
                     ],
                   ),
@@ -495,15 +592,15 @@ class _WalkdownChecklistPageState extends State<WalkdownChecklistPage> {
                   Navigator.pop(context);
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('✅ Walkdown marcado como completo!'),
+                    SnackBar(
+                      content: Text(loc.checklistMarkedCompletedMessage),
                       backgroundColor: Colors.green,
                     ),
                   );
                 }
               },
               icon: const Icon(Icons.check_circle),
-              label: const Text('Marcar Completo'),
+              label: Text(loc.checklistMarkCompletedLabel),
               backgroundColor: Colors.green,
             )
           : null,

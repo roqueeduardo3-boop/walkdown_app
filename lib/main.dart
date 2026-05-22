@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'checklist_template_page.dart';
 import 'sqflite_stub.dart' if (dart.library.ffi) 'sqflite_desktop.dart';
 import 'WalkdownChecklistPage.dart';
 import 'models.dart';
@@ -112,6 +114,79 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static const _buttonRadius = BorderRadius.all(Radius.circular(16));
+
+  ButtonStyle _glassGradientButtonStyle({
+    required Color foregroundColor,
+    required Color borderColor,
+  }) {
+    return ButtonStyle(
+      foregroundColor: WidgetStateProperty.all(foregroundColor),
+      backgroundColor: WidgetStateProperty.all(Colors.transparent),
+      shadowColor: WidgetStateProperty.all(const Color(0x40191D24)),
+      elevation: WidgetStateProperty.all(0),
+      shape: WidgetStateProperty.all(
+        RoundedRectangleBorder(
+          borderRadius: _buttonRadius,
+          side: BorderSide(color: borderColor, width: 1.1),
+        ),
+      ),
+      padding: WidgetStateProperty.all(
+        const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      ),
+      backgroundBuilder: (context, states, child) {
+        final isDisabled = states.contains(WidgetState.disabled);
+        final isPressed = states.contains(WidgetState.pressed);
+        final opacity = isDisabled ? 0.48 : (isPressed ? 0.9 : 1.0);
+
+        final metallicTop =
+            isPressed ? const Color(0xFFD4D7DD) : const Color(0xFFF7F8FA);
+        final metallicMid =
+            isPressed ? const Color(0xFFB8BDC6) : const Color(0xFFD9DCE2);
+        final metallicBase =
+            isPressed ? const Color(0xFF8E949F) : const Color(0xFFAAB0BA);
+        final metallicBottom =
+            isPressed ? const Color(0xFFC6CAD2) : const Color(0xFFE7E9ED);
+
+        return Ink(
+          decoration: BoxDecoration(
+            borderRadius: _buttonRadius,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                metallicTop.withOpacity(opacity),
+                metallicMid.withOpacity(opacity),
+                metallicBase.withOpacity(opacity),
+                metallicBottom.withOpacity(opacity),
+              ],
+              stops: const [0.0, 0.38, 0.62, 1.0],
+            ),
+            border: Border.all(
+              color: borderColor.withOpacity(isPressed ? 0.7 : 0.95),
+              width: 1.15,
+            ),
+            boxShadow: isDisabled
+                ? const []
+                : [
+                    BoxShadow(
+                      color: const Color(0x3312171D),
+                      offset: const Offset(0, 1.5),
+                      blurRadius: 3,
+                    ),
+                    const BoxShadow(
+                      color: Color(0x66FFFFFF),
+                      offset: Offset(0, -1),
+                      blurRadius: 1,
+                    ),
+                  ],
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
   Future<void> _initializeDatabase() async {
     try {
       await WalkdownDatabase.instance.database;
@@ -124,6 +199,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     _initializeDatabase();
 
+    const glassWhite = Color(0xCCFFFFFF);
+    const glassPanel = Color(0x80FFFFFF);
+    const glassStroke = Color(0x8ADAD8D4);
+    const ink = Color(0xFF2E3338);
+    const accent = Color(0xFF727980);
+
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: appLanguage,
       builder: (context, lang, _) {
@@ -133,6 +214,11 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Wind Turbine Walkdown App',
           debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+            return _GlassBackdrop(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           locale: locale,
           localizationsDelegates: const [
             AppLocalizations.delegate,
@@ -145,38 +231,196 @@ class MyApp extends StatelessWidget {
             Locale('pt'),
           ],
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF5C7CBA),
+            colorScheme: ColorScheme.fromSeed(seedColor: accent).copyWith(
+              surface: glassWhite,
+              primary: accent,
+              onSurface: ink,
+              onPrimary: Colors.white,
             ),
             useMaterial3: true,
-            scaffoldBackgroundColor: const Color.fromARGB(255, 240, 233, 243),
+            scaffoldBackgroundColor: Colors.transparent,
             appBarTheme: const AppBarTheme(
-              backgroundColor: Color.fromARGB(235, 226, 222, 222),
-              foregroundColor: Color(0xFF333333),
-              elevation: 8,
+              backgroundColor: glassPanel,
+              foregroundColor: ink,
+              elevation: 0,
+              scrolledUnderElevation: 0,
               centerTitle: true,
               surfaceTintColor: Colors.transparent,
-              shadowColor: Colors.black45,
+              shadowColor: Colors.transparent,
+              titleTextStyle: TextStyle(
+                fontSize: 31,
+                fontWeight: FontWeight.w500,
+                color: ink,
+              ),
+            ),
+            cardTheme: CardThemeData(
+              color: glassPanel,
+              elevation: 0,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: glassStroke, width: 1.1),
+              ),
+            ),
+            dialogTheme: DialogThemeData(
+              backgroundColor: glassWhite,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: glassStroke),
+              ),
+            ),
+            listTileTheme: const ListTileThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+            dividerTheme: DividerThemeData(
+              color: ink.withOpacity(0.18),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: glassWhite,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: glassStroke),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: glassStroke),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: accent, width: 1.6),
+              ),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: _glassGradientButtonStyle(
+                foregroundColor: const Color(0xFF1E252E),
+                borderColor: const Color(0xB3F5F2EB),
+              ),
+            ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: _glassGradientButtonStyle(
+                foregroundColor: const Color(0xFF2E3338),
+                borderColor: const Color(0x99FFFFFF),
+              ),
             ),
             filledButtonTheme: FilledButtonThemeData(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF5C7CBA),
-                foregroundColor: Colors.white,
-                elevation: 8,
-                shadowColor: Colors.black45,
-              ).copyWith(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.pressed)) {
-                    return const Color(0xFF4CAF50);
-                  }
-                  return const Color(0xFF5C7CBA);
-                }),
+              style: _glassGradientButtonStyle(
+                foregroundColor: const Color(0xFF1E252E),
+                borderColor: const Color(0xB3F5F2EB),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: _glassGradientButtonStyle(
+                foregroundColor: const Color(0xFF1E252E),
+                borderColor: const Color(0x99FFFFFF),
+              ),
+            ),
+            snackBarTheme: SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xE6192430),
+              contentTextStyle: const TextStyle(color: Colors.white),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           ),
           home: const RootPage(),
         );
       },
+    );
+  }
+}
+
+class _GlassBackdrop extends StatelessWidget {
+  final Widget child;
+
+  const _GlassBackdrop({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFEAF8FF),
+                Color(0xFFDFF4EF),
+                Color(0xFFF2ECFF),
+              ],
+            ),
+          ),
+        ),
+        const Positioned(
+          left: -40,
+          top: -30,
+          child: _GlassGlow(
+            size: 210,
+            color: Color(0x66FFFFFF),
+          ),
+        ),
+        const Positioned(
+          right: -70,
+          top: 110,
+          child: _GlassGlow(
+            size: 260,
+            color: Color(0x4D9BE7FF),
+          ),
+        ),
+        const Positioned(
+          left: 40,
+          bottom: -85,
+          child: _GlassGlow(
+            size: 230,
+            color: Color(0x59B5FFD9),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
+class _GlassGlow extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlassGlow({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              Colors.transparent,
+              color.withOpacity(0.08),
+              color,
+            ],
+            stops: const [0.58, 0.84, 1],
+          ),
+          border: Border.all(
+            color: color.withOpacity(0.75),
+            width: 1.4,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -283,8 +527,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text(kUseDevFirebase ? '🧪 Walkdown DEV' : '🚀 Walkdown App'),
+        title: const Text(kUseDevFirebase ? '🧪 Walkdown DEV' : 'Walkdown App'),
         centerTitle: true,
       ),
       body: Center(
@@ -386,10 +629,6 @@ class _LoginPageState extends State<LoginPage> {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _signIn,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5C7CBA),
-                      foregroundColor: Colors.white,
-                    ),
                     child: _loading
                         ? const SizedBox(
                             width: 20,
@@ -629,6 +868,15 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
         leading: PopupMenuButton<String>(
           icon: const Icon(Icons.menu),
           onSelected: (value) async {
+            if (value == 'manage_checklist') {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ChecklistTemplatePage(),
+                ),
+              );
+              return;
+            }
+
             if (value == 'logout') {
               final unsyncedCount =
                   await WalkdownDatabase.instance.countUnsyncedWalkdowns();
@@ -637,19 +885,16 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                 final confirmUnsynced = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('⚠️ Dados não sincronizados'),
-                    content: Text(
-                        '$unsyncedCount ponto(s) não foram enviados.\n\nQueres sair mesmo assim?'),
+                    title: Text(loc.unsyncedDataTitle),
+                    content: Text(loc.unsyncedDataMessage(unsyncedCount)),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancelar'),
+                        child: Text(loc.cancelButtonLabel),
                       ),
                       FilledButton(
                         onPressed: () => Navigator.pop(context, true),
-                        style: FilledButton.styleFrom(
-                            backgroundColor: Colors.orange),
-                        child: const Text('Sair sem sincronizar'),
+                        child: Text(loc.exitWithoutSyncLabel),
                       ),
                     ],
                   ),
@@ -661,18 +906,16 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Tens a certeza que queres sair?'),
+                  title: Text(loc.logoutLabel),
+                  content: Text(loc.logoutConfirmMessage),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancelar'),
+                      child: Text(loc.cancelButtonLabel),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      style:
-                          FilledButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text('Sair'),
+                      child: Text(loc.exitLabel),
                     ),
                   ],
                 ),
@@ -695,13 +938,23 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
             }
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(
+            PopupMenuItem(
+              value: 'manage_checklist',
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note),
+                  const SizedBox(width: 8),
+                  Text(loc.editWalkdownChecklistLabel),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: 'logout',
               child: Row(
                 children: [
-                  Icon(Icons.logout, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Logout'),
+                  const Icon(Icons.logout, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Text(loc.logoutLabel),
                 ],
               ),
             ),
@@ -719,7 +972,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_upload),
-                tooltip: 'Enviar dados',
+                tooltip: loc.syncUploadTooltip,
                 onPressed: _syncController.isSyncing ? null : _syncNewWalkdowns,
               );
             },
@@ -735,7 +988,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.cloud_download),
-                tooltip: 'Baixar dados',
+                tooltip: loc.syncDownloadTooltip,
                 onPressed:
                     _syncController.isSyncing ? null : _pullFromFirestore,
               );
@@ -793,7 +1046,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                         ),
                         subtitle: Text(
                           '${w.projectInfo.towerNumber} · ${_formatDate(w.projectInfo.date)}'
-                          '${w.occurrences.isNotEmpty ? ' · 📋 ${w.occurrences.length} ocorrências' : ''}'
+                          '${w.occurrences.isNotEmpty ? ' · 📋 ${loc.walkdownOccurrencesCount(w.occurrences.length)}' : ''}'
                           '${w.isCompleted ? ' · ${loc.walkdownCompletedLabel}' : ''}',
                         ),
                         onTap: () async {
@@ -869,7 +1122,7 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                             IconButton(
                               icon: const Icon(Icons.checklist,
                                   color: Colors.green),
-                              tooltip: 'Checklist PDF',
+                              tooltip: loc.checklistPdfTooltip,
                               onPressed: () async {
                                 if (w.id == null) return;
 
@@ -899,8 +1152,10 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
                                   Navigator.pop(context);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                        content: Text(
-                                            'Erro ao abrir Checklist PDF: $e')),
+                                      content: Text(
+                                        loc.checklistPdfOpenError('$e'),
+                                      ),
+                                    ),
                                   );
                                 }
                               },
@@ -932,11 +1187,12 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content:
-                                            Text('✅ Excel gerado: $filePath'),
+                                        content: Text(
+                                          loc.excelGenerated(filePath),
+                                        ),
                                         backgroundColor: Colors.green,
                                         action: SnackBarAction(
-                                          label: 'Abrir',
+                                          label: loc.pdfOpenLabel,
                                           onPressed: () async {
                                             try {
                                               await Process.run(
@@ -955,14 +1211,15 @@ class _WalkdownHomePageState extends State<WalkdownHomePage> {
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content:
-                                            Text('❌ Erro ao gerar Excel: $e'),
+                                        content: Text(
+                                          loc.genericErrorLabel('$e'),
+                                        ),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
                                   }
                                 },
-                                tooltip: 'Gerar Excel',
+                                tooltip: loc.excelTooltip,
                               ),
                             IconButton(
                               icon: const Icon(Icons.delete),
@@ -1148,9 +1405,6 @@ class _NewWalkdownDialogState extends State<_NewWalkdownDialog> {
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.all(const Color(0xFFB0BEC5)),
-          ),
           child: Text(loc.cancelButtonLabel),
         ),
         FilledButton(

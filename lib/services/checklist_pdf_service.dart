@@ -93,7 +93,8 @@ class ChecklistPdfService {
       logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
     } catch (_) {}
 
-    final sections = buildChecklistForWalkdown(walkdown);
+    final sections = await WalkdownDatabase.instance
+        .getChecklistSectionsForWalkdown(walkdown);
 
     final pdf = pw.Document();
 

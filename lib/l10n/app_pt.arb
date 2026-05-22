@@ -1,0 +1,222 @@
+{
+  "@@locale": "pt",
+  "occurrencesTitle": "Ocorrências",
+  "languageChooseTitle": "Escolha o idioma",
+  "walkdownCompletedLabel": "Walkdown Completo",
+  "newOccurrenceTitle": "Nova ocorrência",
+  "locationLabel": "Localização / Secção / Item",
+  "locationRequired": "Indica a localização / secção / item",
+  "descriptionLabel": "Descrição / Problema",
+  "descriptionRequired": "A descrição é obrigatória",
+  "dragPhotosHint": "Arrasta aqui as fotos (PC)",
+  "editOccurrenceMessage": "A editar ocorrência. Clica em Cancelar para criar uma nova.",
+  "occurrenceUpdatedMessage": "Ocorrência atualizada",
+  "occurrenceSavedMessage": "Ocorrência guardada",
+  "maxPhotosMessage": "Máximo de 4 fotos por ocorrência",
+  "photoAddedMessage": "Foto adicionada ({current}/4).",
+  "@photoAddedMessage": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      }
+    }
+  },
+  "cameraButtonLabel": "Câmara",
+  "galleryButtonLabel": "Galeria",
+  "photosCountLabel": "Fotos: {count}",
+  "@photosCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updateButtonLabel": "Atualizar",
+  "saveButtonLabel": "Guardar",
+  "editCanceledMessage": "Edição cancelada",
+  "cancelEditButtonLabel": "Cancelar edição",
+  "cancelButtonLabel": "Cancelar",
+  "createdAtLabel": "Criado em:",
+  "attachedPhotosLabel": "Fotos anexadas ({count})",
+  "@attachedPhotosLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noOccurrencesLabel": "Nenhuma ocorrência registada ainda.",
+  "walkdownsLoaded": "Carregado da BD: {count} registos",
+  "@walkdownsLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newWalkdownButton": "Novo Walkdown",
+  "walkdownWelcomeTitle": "Bem-vindo ao Walkdown 2WS",
+  "deleteWalkdownTitle": "Apagar walkdown",
+  "deleteWalkdownQuestion": "Tens a certeza de que queres apagar este walkdown?",
+  "logoutLabel": "Terminar sessão",
+  "unsyncedDataTitle": "Dados por sincronizar",
+  "unsyncedDataMessage": "{count} item(ns) ainda não foram enviados.\n\nQueres sair mesmo assim?",
+  "@unsyncedDataMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "exitWithoutSyncLabel": "Sair sem sincronizar",
+  "logoutConfirmMessage": "Tens a certeza de que queres terminar sessão?",
+  "exitLabel": "Sair",
+  "syncUploadTooltip": "Enviar dados",
+  "syncDownloadTooltip": "Baixar dados",
+  "walkdownOccurrencesCount": "{count} ocorrências",
+  "@walkdownOccurrencesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteButtonLabel": "Apagar",
+  "pdfGenerated": "PDF gerado: {path}",
+  "@pdfGenerated": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pdfOpenLabel": "Abrir",
+  "pdfErrorLabel": "Erro ao gerar PDF",
+  "pdfTooltip": "Gerar PDF",
+  "excelSuccessLabel": "Excel gerado com sucesso",
+  "excelGenerated": "Excel gerado: {path}",
+  "@excelGenerated": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "excelErrorLabel": "Erro ao gerar Excel",
+  "excelTooltip": "Exportar para Excel",
+  "checklistPdfTooltip": "PDF da checklist",
+  "checklistPdfOpenError": "Erro ao abrir o PDF da checklist: {error}",
+  "@checklistPdfOpenError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "towerTypeLabel": "Tipo de torre",
+  "towerTypeFourSections": "4 secções (até S4)",
+  "towerTypeFiveSections": "5 secções (até S5)",
+  "dateLabel": "Data",
+  "chooseDateButtonLabel": "Escolher data",
+  "newWalkdownDialogTitle": "Novo Walkdown",
+  "projectNameLabel": "Projeto",
+  "projectNumberLabel": "Número",
+  "supervisorLabel": "Supervisor",
+  "roadLabel": "Estrada",
+  "towerLabel": "Torre",
+  "fieldRequiredLabel": "Obrigatório",
+  "checklistTitle": "Checklist Completo - Gerar PDF",
+  "editWalkdownChecklistLabel": "Editar checklist do walkdown",
+  "checklistTemplateLoadError": "Erro ao carregar o editor da checklist: {error}",
+  "@checklistTemplateLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "checklistTemplatePageTitle": "Editar checklist do walkdown",
+  "checklistTemplateRefreshTooltip": "Atualizar",
+  "checklistTemplateNewSectionLabel": "Nova secção",
+  "checklistTemplateEmptyState": "Ainda não existem secções configuradas.",
+  "checklistTemplateSectionDeleteTitle": "Apagar secção",
+  "checklistTemplateSectionDeleteMessage": "A secção \"{sectionTitle}\" e todas as frases associadas serão apagadas. Continuar?",
+  "@checklistTemplateSectionDeleteMessage": {
+    "placeholders": {
+      "sectionTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "checklistTemplateItemDeleteTitle": "Apagar frase",
+  "checklistTemplateItemDeleteMessage": "Apagar a frase \"{itemText}\" da secção {sectionTitle}?",
+  "@checklistTemplateItemDeleteMessage": {
+    "placeholders": {
+      "itemText": {
+        "type": "String"
+      },
+      "sectionTitle": {
+        "type": "String"
+      }
+    }
+  },
+  "checklistTemplateAllTowers": "Todas as torres",
+  "checklistTemplateFourSectionsOnly": "Só torres de 4 secções",
+  "checklistTemplateFiveSectionsOnly": "Só torres de 5 secções",
+  "checklistTemplateSectionSummary": "{count} frase(s) • {scope}",
+  "@checklistTemplateSectionSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "checklistTemplateNewPhraseTooltip": "Nova frase",
+  "checklistTemplateEditSectionLabel": "Editar secção",
+  "checklistTemplateDeleteSectionLabel": "Apagar secção",
+  "checklistTemplateEmptySection": "Sem frases nesta secção.",
+  "checklistTemplateNoEnglishTranslation": "Sem tradução em inglês",
+  "checklistTemplateEditPhraseTooltip": "Editar frase",
+  "checklistTemplateDeletePhraseTooltip": "Apagar frase",
+  "checklistTemplateEditSectionTitle": "Editar secção",
+  "checklistTemplateCreateSectionTitle": "Nova secção",
+  "checklistTemplateTitlePtLabel": "Título em português",
+  "checklistTemplateTitleEnLabel": "Título em inglês",
+  "checklistTemplateApplyToLabel": "Aplicar a",
+  "checklistTemplateAllTowersOption": "Todas as torres",
+  "checklistTemplateFourSectionsOption": "Torres de 4 secções",
+  "checklistTemplateFiveSectionsOption": "Torres de 5 secções",
+  "checklistTemplateEditPhraseTitle": "Editar frase",
+  "checklistTemplateCreatePhraseTitle": "Nova frase",
+  "checklistTemplatePhrasePtLabel": "Frase em português",
+  "checklistTemplatePhraseEnLabel": "Frase em inglês",
+  "checklistPageTitle": "Checklist",
+  "checklistOccurrencesTooltip": "Ocorrências",
+  "checklistProgressLabel": "Progresso",
+  "checklistCompleteTitle": "Checklist completo",
+  "checklistCompleteQuestion": "Marcar este walkdown como completo?",
+  "checklistCompleteConfirmLabel": "Confirmar",
+  "checklistMarkedCompletedMessage": "Walkdown marcado como completo!",
+  "checklistMarkCompletedLabel": "Marcar completo",
+  "uploadCompressionProgressLabel": "A comprimir e a enviar...",
+  "noPhotosLabel": "Sem fotos",
+  "uploadPhotoSuccessMessage": "Foto comprimida e enviada ({current}/4).",
+  "@uploadPhotoSuccessMessage": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      }
+    }
+  },
+  "genericErrorLabel": "Erro: {error}",
+  "@genericErrorLabel": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -33,7 +33,7 @@ class WalkdownDatabase {
 
     return openDatabase(
       path,
-      version: 9, // ✅ Versão 9
+      version: 10, // ✅ Versão 10
       onCreate: (db, version) async {
         // Criação INICIAL (instalação limpa)
         await db.execute('''
@@ -81,6 +81,9 @@ class WalkdownDatabase {
             FOREIGN KEY (occurrence_id) REFERENCES occurrences(id) ON DELETE CASCADE
           )
         ''');
+
+        await _createChecklistTemplateTables(db);
+        await _seedChecklistTemplateIfNeeded(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         print('🔄 Upgrading DB from v$oldVersion to v$newVersion');
@@ -152,7 +155,150 @@ class WalkdownDatabase {
             print('⚠️ occurrences já tem check_item_id: $e');
           }
         }
+
+        if (oldVersion < 10) {
+          print(
+              '🔄 Migration v9→v10: Criando template editável da checklist...');
+          await _createChecklistTemplateTables(db);
+          await _seedChecklistTemplateIfNeeded(db);
+        }
       },
+    );
+  }
+
+  Future<void> _createChecklistTemplateTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS checklist_sections (
+        id TEXT PRIMARY KEY,
+        title_pt TEXT NOT NULL,
+        title_en TEXT,
+        tower_requirement TEXT NOT NULL DEFAULT 'all',
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS checklist_items (
+        id TEXT PRIMARY KEY,
+        section_id TEXT NOT NULL,
+        text_pt TEXT NOT NULL,
+        text_en TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (section_id) REFERENCES checklist_sections(id) ON DELETE CASCADE
+      )
+    ''');
+  }
+
+  Future<void> _seedChecklistTemplateIfNeeded(DatabaseExecutor db) async {
+    final countResult = await db.rawQuery(
+      'SELECT COUNT(*) AS count FROM checklist_sections',
+    );
+    final existingCount = Sqflite.firstIntValue(countResult) ?? 0;
+    if (existingCount > 0) {
+      return;
+    }
+
+    final defaultSections = _defaultChecklistTemplateSections();
+
+    for (final section in defaultSections) {
+      await db.insert('checklist_sections', {
+        'id': section.id,
+        'title_pt': section.titlePt,
+        'title_en': section.titleEn,
+        'tower_requirement': section.towerRequirement.storageValue,
+        'sort_order': section.sortOrder,
+      });
+
+      for (final item in section.items) {
+        await db.insert('checklist_items', {
+          'id': item.id,
+          'section_id': section.id,
+          'text_pt': item.textPt,
+          'text_en': item.textEn,
+          'sort_order': item.sortOrder,
+        });
+      }
+    }
+  }
+
+  List<ChecklistSection> _defaultChecklistTemplateSections() {
+    final fourSectionDefaults = buildChecklistForWalkdown(
+      _templateWalkdown(TowerType.fourSections),
+    );
+    final fiveSectionDefaults = buildChecklistForWalkdown(
+      _templateWalkdown(TowerType.fiveSections),
+    );
+
+    final merged = <ChecklistSection>[];
+    final sectionIndexById = <String, int>{};
+
+    for (final section in fourSectionDefaults) {
+      final items = <ChecklistItem>[];
+      for (var itemIndex = 0; itemIndex < section.items.length; itemIndex++) {
+        final item = section.items[itemIndex];
+        items.add(item.copyWith(sortOrder: itemIndex));
+      }
+
+      final normalized = section.copyWith(
+        sortOrder: merged.length,
+        towerRequirement: ChecklistTowerRequirement.all,
+        items: items,
+      );
+
+      sectionIndexById[normalized.id] = merged.length;
+      merged.add(normalized);
+    }
+
+    for (final section in fiveSectionDefaults) {
+      final existingIndex = sectionIndexById[section.id];
+
+      if (existingIndex == null) {
+        final items = <ChecklistItem>[];
+        for (var itemIndex = 0; itemIndex < section.items.length; itemIndex++) {
+          final item = section.items[itemIndex];
+          items.add(item.copyWith(sortOrder: itemIndex));
+        }
+
+        final normalized = section.copyWith(
+          sortOrder: merged.length,
+          towerRequirement: ChecklistTowerRequirement.fiveSections,
+          items: items,
+        );
+
+        sectionIndexById[normalized.id] = merged.length;
+        merged.add(normalized);
+        continue;
+      }
+
+      final existingSection = merged[existingIndex];
+      final existingItems = existingSection.items.toList();
+      final existingItemIds = existingItems.map((item) => item.id).toSet();
+
+      for (final item in section.items) {
+        if (existingItemIds.add(item.id)) {
+          existingItems.add(item.copyWith(sortOrder: existingItems.length));
+        }
+      }
+
+      merged[existingIndex] = existingSection.copyWith(items: existingItems);
+    }
+
+    return merged;
+  }
+
+  WalkdownData _templateWalkdown(TowerType towerType) {
+    return WalkdownData(
+      projectInfo: ProjectInfo(
+        projectName: '',
+        projectNumber: '',
+        supervisorName: '',
+        road: '',
+        towerNumber: '',
+        date: DateTime(2000),
+      ),
+      occurrences: const [],
+      towerType: towerType,
+      turbineName: '',
     );
   }
 // ========== OPERAÇÕES COM WALKDOWNS ==========
@@ -199,7 +345,60 @@ class WalkdownDatabase {
 
   Future<void> deleteWalkdown(int id) async {
     final db = await database;
-    await db.delete('walkdowns', where: 'id = ?', whereArgs: [id]);
+    String? firestoreId;
+
+    await db.transaction((txn) async {
+      final walkdownRows = await txn.query(
+        'walkdowns',
+        columns: ['firestore_id'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+
+      if (walkdownRows.isEmpty) {
+        throw StateError('Walkdown $id não encontrado para apagar.');
+      }
+
+      firestoreId = walkdownRows.first['firestore_id'] as String?;
+
+      await txn.delete(
+        'occurrence_photos',
+        where:
+            'occurrence_id IN (SELECT id FROM occurrences WHERE walkdown_id = ?)',
+        whereArgs: [id],
+      );
+
+      await txn.delete(
+        'occurrences',
+        where: 'walkdown_id = ?',
+        whereArgs: [id],
+      );
+
+      await txn.delete(
+        'checklist_answers',
+        where: 'walkdown_id = ?',
+        whereArgs: [id],
+      );
+
+      final deletedRows = await txn.delete(
+        'walkdowns',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+      if (deletedRows == 0) {
+        throw StateError('Walkdown $id não foi apagado da base de dados.');
+      }
+    });
+
+    if (firestoreId != null && firestoreId!.isNotEmpty) {
+      try {
+        await _firestore.collection('walkdowns').doc(firestoreId).delete();
+      } catch (e) {
+        print('⚠️ Falha ao apagar walkdown $id do Firestore: $e');
+      }
+    }
   }
 
   Future<void> clearAllData() async {
@@ -371,6 +570,140 @@ class WalkdownDatabase {
     return {
       for (final map in maps) map['item_id'] as String: map['answer'] as String,
     };
+  }
+
+  Future<List<ChecklistSection>> getChecklistSections({
+    TowerType? towerType,
+    bool includeEmptySections = false,
+  }) async {
+    final db = await database;
+    await _seedChecklistTemplateIfNeeded(db);
+
+    final sectionMaps = await db.query(
+      'checklist_sections',
+      orderBy: 'sort_order ASC, title_pt COLLATE NOCASE ASC',
+    );
+
+    final itemMaps = await db.query(
+      'checklist_items',
+      orderBy: 'sort_order ASC, text_pt COLLATE NOCASE ASC',
+    );
+
+    final itemsBySection = <String, List<ChecklistItem>>{};
+    for (final itemMap in itemMaps) {
+      final sectionId = itemMap['section_id'] as String;
+      itemsBySection.putIfAbsent(sectionId, () => []).add(
+            ChecklistItem(
+              id: itemMap['id'] as String,
+              textPt: itemMap['text_pt'] as String? ?? '',
+              textEn: itemMap['text_en'] as String?,
+              sortOrder: itemMap['sort_order'] as int? ?? 0,
+            ),
+          );
+    }
+
+    final sections = <ChecklistSection>[];
+    for (final sectionMap in sectionMaps) {
+      final requirement = ChecklistTowerRequirementX.fromStorageValue(
+        sectionMap['tower_requirement'] as String?,
+      );
+
+      if (towerType != null && !requirement.appliesTo(towerType)) {
+        continue;
+      }
+
+      final sectionId = sectionMap['id'] as String;
+      final items = itemsBySection[sectionId] ?? const <ChecklistItem>[];
+
+      if (!includeEmptySections && items.isEmpty) {
+        continue;
+      }
+
+      sections.add(
+        ChecklistSection(
+          id: sectionId,
+          titlePt: sectionMap['title_pt'] as String? ?? sectionId,
+          titleEn: sectionMap['title_en'] as String?,
+          towerRequirement: requirement,
+          sortOrder: sectionMap['sort_order'] as int? ?? 0,
+          items: items,
+        ),
+      );
+    }
+
+    return sections;
+  }
+
+  Future<List<ChecklistSection>> getChecklistSectionsForWalkdown(
+    WalkdownData walkdown,
+  ) {
+    return getChecklistSections(towerType: walkdown.towerType);
+  }
+
+  Future<void> upsertChecklistSection(ChecklistSection section) async {
+    final db = await database;
+    await _seedChecklistTemplateIfNeeded(db);
+
+    await db.insert(
+      'checklist_sections',
+      {
+        'id': section.id,
+        'title_pt': section.titlePt,
+        'title_en': section.titleEn,
+        'tower_requirement': section.towerRequirement.storageValue,
+        'sort_order': section.sortOrder,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> upsertChecklistItem({
+    required String id,
+    required String sectionId,
+    required String textPt,
+    String? textEn,
+    required int sortOrder,
+  }) async {
+    final db = await database;
+    await _seedChecklistTemplateIfNeeded(db);
+
+    await db.insert(
+      'checklist_items',
+      {
+        'id': id,
+        'section_id': sectionId,
+        'text_pt': textPt,
+        'text_en': textEn,
+        'sort_order': sortOrder,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteChecklistItem(String itemId) async {
+    final db = await database;
+    await db.delete(
+      'checklist_items',
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
+  }
+
+  Future<void> deleteChecklistSection(String sectionId) async {
+    final db = await database;
+
+    await db.transaction((txn) async {
+      await txn.delete(
+        'checklist_items',
+        where: 'section_id = ?',
+        whereArgs: [sectionId],
+      );
+      await txn.delete(
+        'checklist_sections',
+        where: 'id = ?',
+        whereArgs: [sectionId],
+      );
+    });
   }
 
   // ========== SINCRONIZAÇÃO COM FIRESTORE ========

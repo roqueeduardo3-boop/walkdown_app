@@ -444,37 +444,6 @@ class PdfGenerator {
     );
   }
 
-  /// ✅ NOVA FUNÇÃO: Download das fotos do Firebase Storage
-  static Future<List<pw.ImageProvider?>> _downloadPhotosForPdf(
-      List<String> photos) async {
-    final List<pw.ImageProvider?> providers = [];
-
-    for (final photoPath in photos) {
-      try {
-        if (photoPath.startsWith('http')) {
-          // ✅ É URL DO FIREBASE - FAZER DOWNLOAD
-          final file = await FirebaseStorageService.downloadPhoto(photoPath);
-          final bytes = await file.readAsBytes();
-          providers.add(pw.MemoryImage(bytes));
-        } else {
-          // ✅ É PATH LOCAL (COMPATIBILIDADE)
-          final file = File(photoPath);
-          if (await file.exists()) {
-            final bytes = await file.readAsBytes();
-            providers.add(pw.MemoryImage(bytes));
-          } else {
-            providers.add(null);
-          }
-        }
-      } catch (e) {
-        print('⚠️ Erro ao processar foto para PDF: $e');
-        providers.add(null);
-      }
-    }
-
-    return providers;
-  }
-
   static pw.Widget _buildEmptyCell() {
     return pw.Container(
       height: 70,

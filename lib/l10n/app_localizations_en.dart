@@ -49,7 +49,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String photoAddedMessage(int current) {
-    return 'Photo added (max 4).';
+    return 'Photo added ($current/4).';
   }
 
   @override
@@ -60,7 +60,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String photosCountLabel(int count) {
-    return 'Photos: 4';
+    return 'Photos: $count';
   }
 
   @override
@@ -83,7 +83,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String attachedPhotosLabel(int count) {
-    return 'Attached photos';
+    return 'Attached photos ($count)';
   }
 
   @override
@@ -107,6 +107,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteWalkdownQuestion => 'Are you sure you want to delete this walkdown?';
 
   @override
+  String get logoutLabel => 'Logout';
+
+  @override
+  String get unsyncedDataTitle => 'Unsynced data';
+
+  @override
+  String unsyncedDataMessage(int count) {
+    return '$count item(s) have not been sent yet.\n\nDo you want to leave anyway?';
+  }
+
+  @override
+  String get exitWithoutSyncLabel => 'Leave without syncing';
+
+  @override
+  String get logoutConfirmMessage => 'Are you sure you want to sign out?';
+
+  @override
+  String get exitLabel => 'Leave';
+
+  @override
+  String get syncUploadTooltip => 'Send data';
+
+  @override
+  String get syncDownloadTooltip => 'Download data';
+
+  @override
+  String walkdownOccurrencesCount(int count) {
+    return '$count occurrences';
+  }
+
+  @override
   String get deleteButtonLabel => 'Delete';
 
   @override
@@ -127,10 +158,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get excelSuccessLabel => 'Excel generated successfully';
 
   @override
+  String excelGenerated(String path) {
+    return 'Excel generated: $path';
+  }
+
+  @override
   String get excelErrorLabel => 'Error generating Excel';
 
   @override
   String get excelTooltip => 'Export to Excel';
+
+  @override
+  String get checklistPdfTooltip => 'Checklist PDF';
+
+  @override
+  String checklistPdfOpenError(String error) {
+    return 'Error opening checklist PDF: $error';
+  }
 
   @override
   String get towerTypeLabel => 'Tower type';
@@ -170,4 +214,151 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checklistTitle => 'Checklist Complete - Generate PDF';
+
+  @override
+  String get editWalkdownChecklistLabel => 'Edit Walkdown Checklist';
+
+  @override
+  String checklistTemplateLoadError(String error) {
+    return 'Error loading checklist editor: $error';
+  }
+
+  @override
+  String get checklistTemplatePageTitle => 'Edit Walkdown Checklist';
+
+  @override
+  String get checklistTemplateRefreshTooltip => 'Refresh';
+
+  @override
+  String get checklistTemplateNewSectionLabel => 'New section';
+
+  @override
+  String get checklistTemplateEmptyState => 'There are no configured sections yet.';
+
+  @override
+  String get checklistTemplateSectionDeleteTitle => 'Delete section';
+
+  @override
+  String checklistTemplateSectionDeleteMessage(String sectionTitle) {
+    return 'The section \"$sectionTitle\" and all its phrases will be deleted. Continue?';
+  }
+
+  @override
+  String get checklistTemplateItemDeleteTitle => 'Delete phrase';
+
+  @override
+  String checklistTemplateItemDeleteMessage(String itemText, String sectionTitle) {
+    return 'Delete the phrase \"$itemText\" from section $sectionTitle?';
+  }
+
+  @override
+  String get checklistTemplateAllTowers => 'All towers';
+
+  @override
+  String get checklistTemplateFourSectionsOnly => '4-section towers only';
+
+  @override
+  String get checklistTemplateFiveSectionsOnly => '5-section towers only';
+
+  @override
+  String checklistTemplateSectionSummary(int count, String scope) {
+    return '$count phrase(s) • $scope';
+  }
+
+  @override
+  String get checklistTemplateNewPhraseTooltip => 'New phrase';
+
+  @override
+  String get checklistTemplateEditSectionLabel => 'Edit section';
+
+  @override
+  String get checklistTemplateDeleteSectionLabel => 'Delete section';
+
+  @override
+  String get checklistTemplateEmptySection => 'No phrases in this section.';
+
+  @override
+  String get checklistTemplateNoEnglishTranslation => 'No English translation';
+
+  @override
+  String get checklistTemplateEditPhraseTooltip => 'Edit phrase';
+
+  @override
+  String get checklistTemplateDeletePhraseTooltip => 'Delete phrase';
+
+  @override
+  String get checklistTemplateEditSectionTitle => 'Edit section';
+
+  @override
+  String get checklistTemplateCreateSectionTitle => 'New section';
+
+  @override
+  String get checklistTemplateTitlePtLabel => 'Portuguese title';
+
+  @override
+  String get checklistTemplateTitleEnLabel => 'English title';
+
+  @override
+  String get checklistTemplateApplyToLabel => 'Apply to';
+
+  @override
+  String get checklistTemplateAllTowersOption => 'All towers';
+
+  @override
+  String get checklistTemplateFourSectionsOption => '4-section towers';
+
+  @override
+  String get checklistTemplateFiveSectionsOption => '5-section towers';
+
+  @override
+  String get checklistTemplateEditPhraseTitle => 'Edit phrase';
+
+  @override
+  String get checklistTemplateCreatePhraseTitle => 'New phrase';
+
+  @override
+  String get checklistTemplatePhrasePtLabel => 'Portuguese phrase';
+
+  @override
+  String get checklistTemplatePhraseEnLabel => 'English phrase';
+
+  @override
+  String get checklistPageTitle => 'Checklist';
+
+  @override
+  String get checklistOccurrencesTooltip => 'Occurrences';
+
+  @override
+  String get checklistProgressLabel => 'Progress';
+
+  @override
+  String get checklistCompleteTitle => 'Checklist complete';
+
+  @override
+  String get checklistCompleteQuestion => 'Mark this walkdown as complete?';
+
+  @override
+  String get checklistCompleteConfirmLabel => 'Confirm';
+
+  @override
+  String get checklistMarkedCompletedMessage => 'Walkdown marked as complete!';
+
+  @override
+  String get checklistMarkCompletedLabel => 'Mark Complete';
+
+  @override
+  String get uploadCompressionProgressLabel => 'Compressing and uploading...';
+
+  @override
+  String get noPhotosLabel => 'No photos';
+
+  @override
+  String uploadPhotoSuccessMessage(int current) {
+    return 'Compressed photo uploaded ($current/4).';
+  }
+
+  @override
+  String genericErrorLabel(String error) {
+    return 'Error: $error';
+  }
 }

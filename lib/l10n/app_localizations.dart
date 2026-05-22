@@ -176,7 +176,7 @@ abstract class AppLocalizations {
   /// No description provided for @photoAddedMessage.
   ///
   /// In en, this message translates to:
-  /// **'Photo added (max 4).'**
+  /// **'Photo added ({current}/4).'**
   String photoAddedMessage(int current);
 
   /// No description provided for @cameraButtonLabel.
@@ -194,7 +194,7 @@ abstract class AppLocalizations {
   /// No description provided for @photosCountLabel.
   ///
   /// In en, this message translates to:
-  /// **'Photos: 4'**
+  /// **'Photos: {count}'**
   String photosCountLabel(int count);
 
   /// No description provided for @updateButtonLabel.
@@ -236,7 +236,7 @@ abstract class AppLocalizations {
   /// No description provided for @attachedPhotosLabel.
   ///
   /// In en, this message translates to:
-  /// **'Attached photos'**
+  /// **'Attached photos ({count})'**
   String attachedPhotosLabel(int count);
 
   /// No description provided for @noOccurrencesLabel.
@@ -275,6 +275,60 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete this walkdown?'**
   String get deleteWalkdownQuestion;
 
+  /// No description provided for @logoutLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logoutLabel;
+
+  /// No description provided for @unsyncedDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsynced data'**
+  String get unsyncedDataTitle;
+
+  /// No description provided for @unsyncedDataMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s) have not been sent yet.\n\nDo you want to leave anyway?'**
+  String unsyncedDataMessage(int count);
+
+  /// No description provided for @exitWithoutSyncLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave without syncing'**
+  String get exitWithoutSyncLabel;
+
+  /// No description provided for @logoutConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to sign out?'**
+  String get logoutConfirmMessage;
+
+  /// No description provided for @exitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get exitLabel;
+
+  /// No description provided for @syncUploadTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Send data'**
+  String get syncUploadTooltip;
+
+  /// No description provided for @syncDownloadTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Download data'**
+  String get syncDownloadTooltip;
+
+  /// No description provided for @walkdownOccurrencesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} occurrences'**
+  String walkdownOccurrencesCount(int count);
+
   /// No description provided for @deleteButtonLabel.
   ///
   /// In en, this message translates to:
@@ -311,6 +365,12 @@ abstract class AppLocalizations {
   /// **'Excel generated successfully'**
   String get excelSuccessLabel;
 
+  /// No description provided for @excelGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Excel generated: {path}'**
+  String excelGenerated(String path);
+
   /// No description provided for @excelErrorLabel.
   ///
   /// In en, this message translates to:
@@ -322,6 +382,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export to Excel'**
   String get excelTooltip;
+
+  /// No description provided for @checklistPdfTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Checklist PDF'**
+  String get checklistPdfTooltip;
+
+  /// No description provided for @checklistPdfOpenError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error opening checklist PDF: {error}'**
+  String checklistPdfOpenError(String error);
 
   /// No description provided for @towerTypeLabel.
   ///
@@ -400,6 +472,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checklist Complete - Generate PDF'**
   String get checklistTitle;
+
+  /// No description provided for @editWalkdownChecklistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Walkdown Checklist'**
+  String get editWalkdownChecklistLabel;
+
+  /// No description provided for @checklistTemplateLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading checklist editor: {error}'**
+  String checklistTemplateLoadError(String error);
+
+  /// No description provided for @checklistTemplatePageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Walkdown Checklist'**
+  String get checklistTemplatePageTitle;
+
+  /// No description provided for @checklistTemplateRefreshTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get checklistTemplateRefreshTooltip;
+
+  /// No description provided for @checklistTemplateNewSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New section'**
+  String get checklistTemplateNewSectionLabel;
+
+  /// No description provided for @checklistTemplateEmptyState.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no configured sections yet.'**
+  String get checklistTemplateEmptyState;
+
+  /// No description provided for @checklistTemplateSectionDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete section'**
+  String get checklistTemplateSectionDeleteTitle;
+
+  /// No description provided for @checklistTemplateSectionDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The section \"{sectionTitle}\" and all its phrases will be deleted. Continue?'**
+  String checklistTemplateSectionDeleteMessage(String sectionTitle);
+
+  /// No description provided for @checklistTemplateItemDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete phrase'**
+  String get checklistTemplateItemDeleteTitle;
+
+  /// No description provided for @checklistTemplateItemDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the phrase \"{itemText}\" from section {sectionTitle}?'**
+  String checklistTemplateItemDeleteMessage(String itemText, String sectionTitle);
+
+  /// No description provided for @checklistTemplateAllTowers.
+  ///
+  /// In en, this message translates to:
+  /// **'All towers'**
+  String get checklistTemplateAllTowers;
+
+  /// No description provided for @checklistTemplateFourSectionsOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'4-section towers only'**
+  String get checklistTemplateFourSectionsOnly;
+
+  /// No description provided for @checklistTemplateFiveSectionsOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'5-section towers only'**
+  String get checklistTemplateFiveSectionsOnly;
+
+  /// No description provided for @checklistTemplateSectionSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} phrase(s) • {scope}'**
+  String checklistTemplateSectionSummary(int count, String scope);
+
+  /// No description provided for @checklistTemplateNewPhraseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'New phrase'**
+  String get checklistTemplateNewPhraseTooltip;
+
+  /// No description provided for @checklistTemplateEditSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit section'**
+  String get checklistTemplateEditSectionLabel;
+
+  /// No description provided for @checklistTemplateDeleteSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete section'**
+  String get checklistTemplateDeleteSectionLabel;
+
+  /// No description provided for @checklistTemplateEmptySection.
+  ///
+  /// In en, this message translates to:
+  /// **'No phrases in this section.'**
+  String get checklistTemplateEmptySection;
+
+  /// No description provided for @checklistTemplateNoEnglishTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'No English translation'**
+  String get checklistTemplateNoEnglishTranslation;
+
+  /// No description provided for @checklistTemplateEditPhraseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit phrase'**
+  String get checklistTemplateEditPhraseTooltip;
+
+  /// No description provided for @checklistTemplateDeletePhraseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete phrase'**
+  String get checklistTemplateDeletePhraseTooltip;
+
+  /// No description provided for @checklistTemplateEditSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit section'**
+  String get checklistTemplateEditSectionTitle;
+
+  /// No description provided for @checklistTemplateCreateSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New section'**
+  String get checklistTemplateCreateSectionTitle;
+
+  /// No description provided for @checklistTemplateTitlePtLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Portuguese title'**
+  String get checklistTemplateTitlePtLabel;
+
+  /// No description provided for @checklistTemplateTitleEnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'English title'**
+  String get checklistTemplateTitleEnLabel;
+
+  /// No description provided for @checklistTemplateApplyToLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to'**
+  String get checklistTemplateApplyToLabel;
+
+  /// No description provided for @checklistTemplateAllTowersOption.
+  ///
+  /// In en, this message translates to:
+  /// **'All towers'**
+  String get checklistTemplateAllTowersOption;
+
+  /// No description provided for @checklistTemplateFourSectionsOption.
+  ///
+  /// In en, this message translates to:
+  /// **'4-section towers'**
+  String get checklistTemplateFourSectionsOption;
+
+  /// No description provided for @checklistTemplateFiveSectionsOption.
+  ///
+  /// In en, this message translates to:
+  /// **'5-section towers'**
+  String get checklistTemplateFiveSectionsOption;
+
+  /// No description provided for @checklistTemplateEditPhraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit phrase'**
+  String get checklistTemplateEditPhraseTitle;
+
+  /// No description provided for @checklistTemplateCreatePhraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New phrase'**
+  String get checklistTemplateCreatePhraseTitle;
+
+  /// No description provided for @checklistTemplatePhrasePtLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Portuguese phrase'**
+  String get checklistTemplatePhrasePtLabel;
+
+  /// No description provided for @checklistTemplatePhraseEnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'English phrase'**
+  String get checklistTemplatePhraseEnLabel;
+
+  /// No description provided for @checklistPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Checklist'**
+  String get checklistPageTitle;
+
+  /// No description provided for @checklistOccurrencesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Occurrences'**
+  String get checklistOccurrencesTooltip;
+
+  /// No description provided for @checklistProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress'**
+  String get checklistProgressLabel;
+
+  /// No description provided for @checklistCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Checklist complete'**
+  String get checklistCompleteTitle;
+
+  /// No description provided for @checklistCompleteQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark this walkdown as complete?'**
+  String get checklistCompleteQuestion;
+
+  /// No description provided for @checklistCompleteConfirmLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get checklistCompleteConfirmLabel;
+
+  /// No description provided for @checklistMarkedCompletedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Walkdown marked as complete!'**
+  String get checklistMarkedCompletedMessage;
+
+  /// No description provided for @checklistMarkCompletedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark Complete'**
+  String get checklistMarkCompletedLabel;
+
+  /// No description provided for @uploadCompressionProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressing and uploading...'**
+  String get uploadCompressionProgressLabel;
+
+  /// No description provided for @noPhotosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos'**
+  String get noPhotosLabel;
+
+  /// No description provided for @uploadPhotoSuccessMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressed photo uploaded ({current}/4).'**
+  String uploadPhotoSuccessMessage(int current);
+
+  /// No description provided for @genericErrorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String genericErrorLabel(String error);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
